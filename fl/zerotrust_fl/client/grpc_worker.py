@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Self, Any
+from typing import Any, Self
 
 import grpc
 import numpy as np
