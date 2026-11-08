@@ -1,0 +1,34 @@
+name: Resolve Go security dependency checksums (temporary)
+
+on:
+  push:
+    branches: [research/cyse-01608-reproducibility]
+    paths:
+      - .github/workflows/cyse-go-module-resolution.yml
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Resolve patched Go modules offline from repo write access
+        shell: bash
+        run: |
+          set -euo pipefail
+          go get golang.org/x/net@v0.62.0 github.com/go-jose/go-jose/v4@v4.1.6
+          go mod tidy
+          go mod verify
+          echo '__CYSE_BEGIN_GO_MOD__'
+          cat go.mod
+          echo '__CYSE_END_GO_MOD__'
+          echo '__CYSE_BEGIN_GO_SUM__'
+          cat go.sum
+          echo '__CYSE_END_GO_SUM__'
