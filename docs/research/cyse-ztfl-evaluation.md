@@ -69,6 +69,12 @@ The abstract checker at `scripts/research/check_authorization_model.py` explores
 
 The `research-security-evidence.yml` workflow records commit-pinned Go regression and race-test JSON for coordinator, security, and protocol cases. These artifacts are **software-validation evidence**, not a measured B0/B1/B2/P comparison. If the runner is unable to execute, report that limitation rather than claiming passing results.
 
+## Research-constructed model-mutation baselines
+
+`TestResearchModelMutationBaselineAblation` compares a small but genuine model-round state mutation across B1 (token/role), B2 (token/role/enrollment) and P (durable stateful coordinator). All profiles use the same token verifier, peer identity, request vector and quorum-one median update semantics. The B1/B2 coordinator adapter is **isolated in a Go test file**, removing only the specified controls; no production deployment flag enables it. Scenarios: valid enrollment, unenrolled worker, revoked worker, wrong role and reusing the same nonce in a different authorized model round.
+
+The baseline adapter does not implement network serialization, multiworker aggregation, failover or the complete production observability stack. Accordingly, these experiments are **controlled mechanism ablations**, not a comparison with independently published FL implementations, and cannot establish an end-to-end performance advantage or general security prevalence.
+
 ## Narrow authorization-control ablation (not model mutation)
 
 A test-only `TestResearchAuthorizationDecisionAblation` keeps TLS peer parsing, JWT signature verification, claim-to-certificate binding and method-specific roles constant, and examines three authorization gates: B1 (token/role), B2 (B1 plus active enrollment), and P (B2 plus timestamp and single-use nonce). It records six deterministic request scenarios per profile: legitimate, unenrolled, revoked, observer-role denial, replay and stale timestamp.
