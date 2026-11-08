@@ -104,7 +104,7 @@ flowchart TD
     CM -. "loss / jitter / churn" .-> Worker
 ```
 
-The Go coordinator is the authenticated network/control plane. It validates and accepts updates but does **not** perform native model aggregation or advance the global FL model. Aggregation CPU/GPU memory and poisoning-mitigation metrics therefore originate from the telemetry-enabled local simulator, while worker network/training metrics and coordinator RPC metrics originate from the distributed control-plane processes.
+The Go coordinator is an authenticated control plane **and a lightweight model-state coordinator**. In `pkg/coordinator/service.go` it validates and buffers authorized local updates, aggregates the buffered vectors when the configured minimum update count is reached (coordinate-wise median by default, or explicitly configured weighted mean), and advances the durable global model version and round. This Go path does **not** run the native C++20/CUDA Krum, Multi-Krum, or trimmed-mean backends: those native aggregation benchmarks and poisoning-mitigation measurements belong to the separately instrumented FL simulator. Go coordinator RPC, authorization, durability, and round-transition measurements must be reported separately from native simulator/aggregation measurements. The Cybersecurity zero-trust study's experimental requirements and known evidence gaps are documented in [`docs/research/cyse-ztfl-evaluation.md`](docs/research/cyse-ztfl-evaluation.md).
 
 ---
 
