@@ -59,7 +59,7 @@ jobs:
           govulncheck ./...
       - name: Run Go SAST
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
           gosec -exclude-generated -severity high -confidence high ./...
       - name: Audit dashboard runtime dependencies
         working-directory: frontend
