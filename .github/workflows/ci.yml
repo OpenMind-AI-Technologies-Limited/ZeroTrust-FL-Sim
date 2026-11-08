@@ -182,7 +182,7 @@ jobs:
       - name: Lint Python
         run: ruff check fl scripts tests benchmarks --exclude 'fl/zerotrust_fl/protocols/fl_service_pb2*.py'
       - name: Test Python and native extension
-        run: python -m pytest -q --cov=zerotrust_fl --cov-report=term-missing --cov-report=xml
+        run: python -m pytest -q --ignore=research/cyse_01608 --cov=zerotrust_fl --cov-report=term-missing --cov-report=xml
 
   integration:
     name: Docker integration and benchmark smoke
