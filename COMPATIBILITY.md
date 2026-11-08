@@ -32,6 +32,14 @@ The new envelope fields are additive. Existing protobuf field numbers remain unc
 
 Coordinator and worker processes must use the same `ZTFL_MODEL_ID`. Changing that identity is an operator-visible compatibility change and should be treated as selecting a different model contract, not as a transparent rename.
 
+## Security-enforcement migration: registration and heartbeat freshness
+
+The Cybersecurity-study hardening branch tightens the existing protobuf v1 RPC **semantics** without changing protobuf field numbers: `RegisterNodeRequest.security` and `HeartbeatRequest.security` are now required because enrollment and lease renewal mutate coordinator-owned security state. Missing/stale metadata or nonces shorter than 16 bytes are rejected. A nonce previously consumed by a successfully acknowledged mutation is rejected on replay.
+
+Existing Python worker/SDK clients already generate a fresh `SecurityMetadata` value per request. Custom Go/gRPC clients must populate `issued_at_unix` with a current Unix timestamp and `nonce` with at least 16 cryptographically random bytes **for each new mutation**. A successful enrollment, heartbeat, update, rotation or revocation must never be retried as a new mutation using the old nonce. Recover the acknowledged state or explicitly retry with a new request only when application semantics permit.
+
+This is a **security-correctness behavior change**: old clients omitting these fields will receive `InvalidArgument`. Users of pre-existing clients should upgrade the client and coordinator together, pin compatible releases, and revalidate authorization tests before production rollout. This is an explicitly documented exception to preserving unsafe acceptance behavior; it is not a general promise of backward-compatible RPC semantics for older clients.
+
 ## v0.9 public Python API freeze
 
 For the v0.9 release line, the public Python API is the set exported by `zerotrust_fl.__all__` together with the behavior represented by `SDK_API_VERSION = "1"`.
