@@ -239,11 +239,9 @@ func (s *Service) SubmitLocalUpdate(ctx context.Context, req *flv1.SubmitLocalUp
 	if _, err := s.registry.Validate(identity, req.GetRegistrationId()); err != nil {
 		return nil, status.Error(codes.PermissionDenied, "registration was revoked, rotated, or expired before update commit")
 	}
-	if !s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+	// Check replay state without consuming the nonce before request preconditions pass.
+	if s.nonceConsumedLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
 		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
-	}
-	if !s.allowUpdateLocked(req.GetNodeId(), now) {
-		return nil, status.Error(codes.ResourceExhausted, "worker update rate limit exceeded")
 	}
 
 	model := s.currentModel()
@@ -266,6 +264,19 @@ func (s *Service) SubmitLocalUpdate(ctx context.Context, req *flv1.SubmitLocalUp
 	if err != nil {
 		return nil, status.Error(codes.Internal, "could not create update identifier")
 	}
+	if !s.allowUpdateLocked(req.GetNodeId(), now) {
+		return nil, status.Error(codes.ResourceExhausted, "worker update rate limit exceeded")
+	}
+	if !s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
+	}
+	// A failed aggregation must not consume a nonce for an uncommitted update.
+	nonceCommitted := false
+	defer func() {
+		if !nonceCommitted {
+			delete(s.nonces, req.GetNodeId()+":"+hex.EncodeToString(req.GetSecurity().GetNonce()))
+		}
+	}()
 	s.pending[req.GetNodeId()] = pendingUpdate{
 		NodeID:      req.GetNodeId(),
 		UpdateID:    updateID,
@@ -274,6 +285,7 @@ func (s *Service) SubmitLocalUpdate(ctx context.Context, req *flv1.SubmitLocalUp
 	}
 
 	if len(s.pending) < s.minUpdates {
+		nonceCommitted = true
 		return &flv1.SubmitLocalUpdateResponse{
 			Accepted:            true,
 			UpdateId:            updateID,
@@ -316,6 +328,7 @@ func (s *Service) SubmitLocalUpdate(ctx context.Context, req *flv1.SubmitLocalUp
 	s.model = nextModel
 	s.modelMu.Unlock()
 	clear(s.pending)
+	nonceCommitted = true
 
 	return &flv1.SubmitLocalUpdateResponse{
 		Accepted:            true,
@@ -337,6 +350,13 @@ func (s *Service) allowUpdateLocked(nodeID string, now time.Time) bool {
 	window.Count++
 	s.rates[nodeID] = window
 	return true
+}
+
+// nonceConsumedLocked is read-only, so rejecting a stale round or malformed update
+// does not mutate replay state. Callers hold roundMu.
+func (s *Service) nonceConsumedLocked(nodeID string, nonce []byte, now time.Time) bool {
+	seen, exists := s.nonces[nodeID+":"+hex.EncodeToString(nonce)]
+	return exists && !seen.Before(now.Add(-requestReplayWindow))
 }
 
 func (s *Service) acceptNonceLocked(nodeID string, nonce []byte, now time.Time) bool {
