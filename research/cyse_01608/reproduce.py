@@ -173,7 +173,8 @@ def _accuracy_and_loss(x, y, weights):
 
 def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
              threat: str, config: Config, *,
-             external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None) -> dict:
+             external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None,
+             include_classification_metrics: bool = False) -> dict:
     if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
         raise ValueError("invalid experimental condition")
     xtr, ytr, xte, yte, n_classes = (
@@ -233,7 +234,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             deltas.append(delta)
         weights += aggregate(np.stack(deltas), aggregator, config).reshape(weights.shape)
     acc, loss = _accuracy_and_loss(xte, yte, weights)
-    return dict(dataset=dataset, seed=seed, partition=config.partition,
+    result = dict(dataset=dataset, seed=seed, partition=config.partition,
                 alpha=config.alpha if config.partition == "dirichlet" else "",
                 aggregator=aggregator, privacy_mode=privacy_mode, threat=threat,
                 attacker_compliance=config.attacker_compliance, rounds=config.rounds,
@@ -242,6 +243,27 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
                 epsilon=epsilon_gaussian(sigma, config.rounds, config.delta) if sigma else "",
                 delta=config.delta if sigma else "", clip_norm=config.clip_norm if clipping else "",
                 noise_std=noise_std)
+    if include_classification_metrics:
+        # Only used by external cybersecurity benchmark experiments; adding
+        # metrics must not change the original manuscript's CSV schema.
+        from sklearn.metrics import balanced_accuracy_score, confusion_matrix, f1_score, recall_score
+
+        predictions = np.argmax(xte @ weights, axis=1)
+        labels = np.arange(n_classes)
+        recalls = recall_score(
+            yte, predictions, labels=labels, average=None, zero_division=0
+        )
+        result.update(
+            macro_f1=float(
+                f1_score(yte, predictions, labels=labels, average="macro", zero_division=0)
+            ),
+            balanced_accuracy=float(balanced_accuracy_score(yte, predictions)),
+            per_class_recall_json=json.dumps(recalls.tolist()),
+            confusion_matrix_json=json.dumps(
+                confusion_matrix(yte, predictions, labels=labels).tolist()
+            ),
+        )
+    return result
 
 
 def write_csv(path: Path, rows: list[dict], columns=FIELDS):
