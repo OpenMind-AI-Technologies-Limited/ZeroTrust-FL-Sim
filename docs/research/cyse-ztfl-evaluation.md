@@ -69,6 +69,10 @@ The abstract checker at `scripts/research/check_authorization_model.py` explores
 
 The `research-security-evidence.yml` workflow records commit-pinned Go regression and race-test JSON for coordinator, security, and protocol cases. These artifacts are **software-validation evidence**, not a measured B0/B1/B2/P comparison. If the runner is unable to execute, report that limitation rather than claiming passing results.
 
+## Research performance measurement separation
+
+The Go benchmark `BenchmarkResearchAuthenticatedRoundTransition` compares a cryptographically authenticated and authorized in-process model update with file-backed durable commit against the identical in-memory coordinator operation. Both use the same identity, token, model vector, aggregation choice and nonce length, but **no network or model training**. Twenty-five accepted updates per repeated run make the file-durable snapshot cost visible; results are *microbenchmarks* and cannot substitute for RQ4 full RPC, scaled client load, or RQ5 FL availability.
+
 ## Outstanding gates before Cybersecurity submission
 
 - Implement and run B1/B2/P with the same security scenarios, and publish raw records.
