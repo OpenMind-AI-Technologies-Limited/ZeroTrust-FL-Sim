@@ -29,7 +29,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		resp, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
-			Security:             mutationSecurityMetadata(t),
+			Security:              mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-01",
 			CertificateCommonName: "edge-worker-01",
 			Hardware: &flv1.HardwareProfile{
@@ -131,7 +131,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		registration, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
-			Security:             mutationSecurityMetadata(t),
+			Security:              mutationSecurityMetadata(t),
 			NodeId:                "observer-01",
 			CertificateCommonName: "observer-01",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
@@ -187,7 +187,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		_, err = client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
-			Security:             mutationSecurityMetadata(t),
+			Security:              mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-01",
 			CertificateCommonName: "edge-worker-01",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
@@ -217,7 +217,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		_, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
-			Security:             mutationSecurityMetadata(t),
+			Security:              mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-02",
 			CertificateCommonName: "edge-worker-02",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
