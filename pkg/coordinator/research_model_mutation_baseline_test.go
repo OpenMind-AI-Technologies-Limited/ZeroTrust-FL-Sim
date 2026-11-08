@@ -22,7 +22,7 @@ import (
 // or the nonce/durable checks for B2. It is NOT a production configuration,
 // independently published competitor, or a network performance comparator.
 type researchModelBaseline struct {
-	service *Service
+	service           *Service
 	enforceEnrollment bool
 }
 
@@ -75,12 +75,12 @@ func (b *researchModelBaseline) SubmitLocalUpdate(ctx context.Context, req *flv1
 	nextVersion := fmt.Sprintf("round-%d-%s", nextRound, hex.EncodeToString(resultDigest[:8]))
 	s.modelMu.Lock()
 	s.model = &flv1.GlobalModel{
-		ModelVersion: nextVersion,
-		RoundId: nextRound,
+		ModelVersion:   nextVersion,
+		RoundId:        nextRound,
 		WeightsPayload: encoded,
-		WeightsFormat: networkWeightsFormat,
-		Sha256: resultDigest[:],
-		CreatedAtUnix: time.Now().UTC().Unix(),
+		WeightsFormat:  networkWeightsFormat,
+		Sha256:         resultDigest[:],
+		CreatedAtUnix:  time.Now().UTC().Unix(),
 	}
 	s.modelMu.Unlock()
 	return &flv1.SubmitLocalUpdateResponse{
@@ -134,7 +134,7 @@ func TestResearchModelMutationBaselineAblation(t *testing.T) {
 						t.Fatal(err)
 					}
 					inner = s
-					baseline := &researchModelBaseline{service:s, enforceEnrollment:profile=="B2_enrollment"}
+					baseline := &researchModelBaseline{service: s, enforceEnrollment: profile == "B2_enrollment"}
 					invoke = baseline.SubmitLocalUpdate
 				}
 				if scenario == "revoked" {
@@ -151,15 +151,15 @@ func TestResearchModelMutationBaselineAblation(t *testing.T) {
 				apply := func(phase string) (bool, codes.Code) {
 					current := inner.currentModel()
 					request := &flv1.SubmitLocalUpdateRequest{
-						NodeId: identity.NodeID,
-						RegistrationId: "registration-experiment",
-						RoundId: current.GetRoundId(),
+						NodeId:           identity.NodeID,
+						RegistrationId:   "registration-experiment",
+						RoundId:          current.GetRoundId(),
 						BaseModelVersion: current.GetModelVersion(),
-						WeightsPayload: payload,
-						WeightsFormat: networkWeightsFormat,
-						UpdateSha256: digest[:],
-						Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs:1, SampleCount:1},
-						Security: lifecycleSecurityMetadata(nonce),
+						WeightsPayload:   payload,
+						WeightsFormat:    networkWeightsFormat,
+						UpdateSha256:     digest[:],
+						Metrics:          &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
+						Security:         lifecycleSecurityMetadata(nonce),
 					}
 					resp, err := invokeLifecycleRPC(auth, ctx, ztsecurity.MethodSubmitLocalUpdate,
 						request, func(handlerCtx context.Context, input any) (any, error) {
@@ -169,9 +169,9 @@ func TestResearchModelMutationBaselineAblation(t *testing.T) {
 					event := map[string]any{
 						"profile": profile, "scenario": scenario,
 						"phase": phase, "accepted": accepted,
-						"grpc_code": status.Code(err).String(),
-						"round_after": inner.currentModel().GetRoundId(),
-						"real_model_mutation": accepted,
+						"grpc_code":                 status.Code(err).String(),
+						"round_after":               inner.currentModel().GetRoundId(),
+						"real_model_mutation":       accepted,
 						"test_constructed_baseline": profile != "P_durable_policy",
 					}
 					raw, _ := json.Marshal(event)
