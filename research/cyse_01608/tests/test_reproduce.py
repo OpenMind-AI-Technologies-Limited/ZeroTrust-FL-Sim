@@ -68,3 +68,14 @@ def test_smoke_creates_matched_and_hashed_artifacts(tmp_path):
     assert len((tmp_path/"runs.csv").read_text().splitlines())==5
     assert len((tmp_path/"paired.csv").read_text().splitlines())==3
     assert (tmp_path/"manifest.json").is_file()
+
+
+def test_holm_adjust_monotone_and_bounded():
+    from security_analysis import holm_adjust
+    p = holm_adjust([0.04, 0.001, 0.1])
+    assert p == pytest.approx([0.08, 0.003, 0.1])
+
+
+def test_stratified_bootstrap_handles_degenerate_results():
+    from security_analysis import stratified_bootstrap_ci
+    assert stratified_bootstrap_ci({'a':[0.,0.], 'b':[0.,0.]}, draws=50) == (0.,0.)
