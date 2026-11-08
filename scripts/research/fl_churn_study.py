@@ -1,6 +1,11 @@
-#!/usr/bin/env python3
 """Synthetic non-IID FL quorum/churn study; does not exercise Go coordinator or network."""
-import argparse, csv, hashlib, json, math, random, statistics
+import argparse
+import csv
+import hashlib
+import json
+import math
+import random
+import statistics
 from pathlib import Path
 
 SCENARIOS=("control","revoked_no_replacement","revoked_with_replacement")
@@ -60,7 +65,7 @@ def simulate(seed,alpha):
     weights=[sum(n*vec[i] for n,vec in updates)/total for i in range(3)]
     completed+=1
    acc,loss=evaluate(weights,test)
-   rows.append(dict(seed=seed,alpha=alpha,scenario=scenario,slot=tick,rounds_completed=completed,stalled_slots=stalled,active_workers=len(active),accuracy=acc,log_loss=loss))
+   rows.append({"seed": seed, "alpha": alpha, "scenario": scenario, "slot": tick, "rounds_completed": completed, "stalled_slots": stalled, "active_workers": len(active), "accuracy": acc, "log_loss": loss})
  return rows
 
 def main():
@@ -79,10 +84,10 @@ def main():
   final=[r for r in data if r["scenario"]==scenario and r["slot"]==24]
   for field in ("accuracy","log_loss","rounds_completed","stalled_slots"):
    values=[r[field] for r in final]
-   summary.append(dict(scenario=scenario,metric=field,n=len(values),mean=statistics.mean(values),sd=statistics.stdev(values),min=min(values),max=max(values)))
+   summary.append({"scenario": scenario, "metric": field, "n": len(values), "mean": statistics.mean(values), "sd": statistics.stdev(values), "min": min(values), "max": max(values)})
  with (args.out/"summary.csv").open("w",newline="") as f:
   writer=csv.DictWriter(f,fieldnames=list(summary[0]));writer.writeheader();writer.writerows(summary)
- manifest=dict(kind="synthetic_FL_availability_simulation",network_or_Go_coordinator_tested=False,quorum=3,initial_workers=[0,1,2],revoked_worker=2,revoked_at_slot=6,reserve_worker=3,replacement_at_slot=10,slots=24,partition="classwise_Dirichlet",alpha=args.alpha,seeds=list(range(1,args.seeds+1)),model="logistic_regression",dataset="synthetic_gaussian_binary_2d",train_samples=180,test_samples=60,local_epochs=2,local_lr=.09,aggregation="weighted_FedAvg",script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
+ manifest={"kind": "synthetic_FL_availability_simulation", "network_or_Go_coordinator_tested": False, "quorum": 3, "initial_workers": [0,1,2], "revoked_worker": 2, "revoked_at_slot": 6, "reserve_worker": 3, "replacement_at_slot": 10, "slots": 24, "partition": "classwise_Dirichlet", "alpha": args.alpha, "seeds": list(range(1,args.seeds+1)), "model": "logistic_regression", "dataset": "synthetic_gaussian_binary_2d", "train_samples": 180, "test_samples": 60, "local_epochs": 2, "local_lr": .09, "aggregation": "weighted_FedAvg", "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
  (args.out/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
  print(json.dumps({"summary":summary}))
 if __name__=="__main__":main()
