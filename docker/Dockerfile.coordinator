@@ -18,8 +18,14 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12 \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/certgen ./security
 
 FROM golang:1.27.3-alpine AS health-probe-builder
-ARG GRPC_HEALTH_PROBE_COMMIT=82e04432a7344c01c56406a6ddf5c8b6841d5a65
-RUN CGO_ENABLED=0 go install github.com/grpc-ecosystem/grpc-health-probe@${GRPC_HEALTH_PROBE_COMMIT}
+# Build a pinned probe release with explicitly patched transitive dependencies.
+# Plain go install pkg@version ignores overrides in the current module.
+ARG GRPC_HEALTH_PROBE_VERSION=v0.4.60
+WORKDIR /health-probe
+RUN go mod init github.com/smshagor-dev/ZeroTrust-FL-Sim/probe-build \
+    && go get github.com/grpc-ecosystem/grpc-health-probe@${GRPC_HEALTH_PROBE_VERSION} \
+    && go get github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0 \
+    && CGO_ENABLED=0 go build -trimpath -o /go/bin/grpc-health-probe github.com/grpc-ecosystem/grpc-health-probe
 
 FROM alpine:3.24 AS runtime
 
