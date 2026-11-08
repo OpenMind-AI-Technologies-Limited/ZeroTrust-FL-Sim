@@ -39,8 +39,8 @@ func TestRejectedStaleUpdateDoesNotConsumeNonce(t *testing.T) {
 		RoundId: 0, BaseModelVersion: "stale-version",
 		WeightsPayload: payload, WeightsFormat: networkWeightsFormat,
 		UpdateSha256: digest[:],
-		Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
-		Security: lifecycleSecurityMetadata([]byte("research-replay-0001")),
+		Metrics:      &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
+		Security:     lifecycleSecurityMetadata([]byte("research-replay-0001")),
 	}
 	invoke := func() (any, error) {
 		return invokeLifecycleRPC(authorizer, ctx, ztsecurity.MethodSubmitLocalUpdate,
@@ -137,8 +137,8 @@ func TestConcurrentDuplicateUpdatesCommitOnce(t *testing.T) {
 		RoundId: 0, BaseModelVersion: "bootstrap",
 		WeightsPayload: payload, WeightsFormat: networkWeightsFormat,
 		UpdateSha256: digest[:],
-		Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
-		Security: lifecycleSecurityMetadata([]byte("research-parallel-nonce")),
+		Metrics:      &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
+		Security:     lifecycleSecurityMetadata([]byte("research-parallel-nonce")),
 	}
 	const attempts = 16
 	start := make(chan struct{})
@@ -189,10 +189,10 @@ func TestEnrollmentAndHeartbeatNonceReplayDenied(t *testing.T) {
 	authorizer, privateKey := lifecycleAuthorizer(t, registry)
 	identity, ctx := lifecycleAuthorizedPeer(t, privateKey, "enrollment-worker", "edge-worker")
 	registerReq := &flv1.RegisterNodeRequest{
-		NodeId: identity.NodeID,
+		NodeId:                identity.NodeID,
 		CertificateCommonName: identity.CommonName,
-		Hardware: &flv1.HardwareProfile{Architecture: "test"},
-		Security: lifecycleSecurityMetadata([]byte("enroll-replay-0001")),
+		Hardware:              &flv1.HardwareProfile{Architecture: "test"},
+		Security:              lifecycleSecurityMetadata([]byte("enroll-replay-0001")),
 	}
 	register := func() (any, error) {
 		return invokeLifecycleRPC(authorizer, ctx, ztsecurity.MethodRegisterNode,
@@ -216,9 +216,9 @@ func TestEnrollmentAndHeartbeatNonceReplayDenied(t *testing.T) {
 		t.Fatal("enrollment replay unexpectedly advanced credential generation")
 	}
 	heartbeatReq := &flv1.HeartbeatRequest{
-		NodeId: identity.NodeID,
+		NodeId:         identity.NodeID,
 		RegistrationId: registered.GetRegistrationId(),
-		Security: lifecycleSecurityMetadata([]byte("heartbeat-replay01")),
+		Security:       lifecycleSecurityMetadata([]byte("heartbeat-replay01")),
 	}
 	heartbeat := func() (any, error) {
 		return invokeLifecycleRPC(authorizer, ctx, ztsecurity.MethodHeartbeat,
