@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"net"
@@ -28,6 +29,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		resp, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
+			Security:             mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-01",
 			CertificateCommonName: "edge-worker-01",
 			Hardware: &flv1.HardwareProfile{
@@ -129,6 +131,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		registration, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
+			Security:             mutationSecurityMetadata(t),
 			NodeId:                "observer-01",
 			CertificateCommonName: "observer-01",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
@@ -184,6 +187,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		_, err = client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
+			Security:             mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-01",
 			CertificateCommonName: "edge-worker-01",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
@@ -213,6 +217,7 @@ func TestZeroTrustTransportAndAuthorization(t *testing.T) {
 		defer cancel()
 
 		_, err := client.Coordinator.RegisterNode(ctx, &flv1.RegisterNodeRequest{
+			Security:             mutationSecurityMetadata(t),
 			NodeId:                "edge-worker-02",
 			CertificateCommonName: "edge-worker-02",
 			Hardware:              &flv1.HardwareProfile{Architecture: "amd64"},
@@ -396,4 +401,13 @@ func (h *securityHarness) readToken(t *testing.T, nodeID string) string {
 		t.Fatal(err)
 	}
 	return strings.TrimSpace(string(data))
+}
+
+func mutationSecurityMetadata(t *testing.T) *flv1.SecurityMetadata {
+	t.Helper()
+	nonce := make([]byte, 24)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatalf("generate mutation nonce: %v", err)
+	}
+	return &flv1.SecurityMetadata{IssuedAtUnix: time.Now().UTC().Unix(), Nonce: nonce}
 }
