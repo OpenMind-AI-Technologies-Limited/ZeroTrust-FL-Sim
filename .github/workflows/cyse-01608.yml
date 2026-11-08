@@ -48,11 +48,21 @@ jobs:
           assert manifest["total_rounds"] == 14400
           print(f"Verified independent matrix: {n} runs / {manifest['total_rounds']} rounds")
           PY
+      - name: Execute malicious-client protocol-bypass extension
+        run: |
+          python research/cyse_01608/reproduce.py --output artifacts/cyse_01608_bypass --attacker-compliance bypass --aggregators mean median multi_krum --privacy-modes clip_only dp_1 dp_2 --threats benign sign_flip
+          python research/cyse_01608/security_analysis.py --compliant artifacts/cyse_01608/paired.csv --bypass artifacts/cyse_01608_bypass/paired.csv --output artifacts/cyse_01608_bypass/security_comparison.csv
+      - name: Execute non-IID extension (not part of submitted matrix)
+        run: |
+          python research/cyse_01608/reproduce.py --output artifacts/cyse_01608_non_iid --partition dirichlet --alpha 0.3 --aggregators mean median multi_krum --privacy-modes clip_only dp_1 --threats benign sign_flip
       - name: Upload independent results (not original manuscript data)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cyse-01608-independent-reference
-          path: artifacts/cyse_01608/
+          path: |
+            artifacts/cyse_01608/
+            artifacts/cyse_01608_bypass/
+            artifacts/cyse_01608_non_iid/
           if-no-files-found: ignore
           retention-days: 30
