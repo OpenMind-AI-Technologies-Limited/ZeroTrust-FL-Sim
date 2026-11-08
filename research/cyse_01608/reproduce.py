@@ -158,10 +158,13 @@ def _accuracy_and_loss(x, y, weights):
 
 
 def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
-             threat: str, config: Config) -> dict:
+             threat: str, config: Config, *,
+             external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None) -> dict:
     if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in THREATS:
         raise ValueError("invalid experimental condition")
-    xtr, ytr, xte, yte, n_classes = load_task(dataset, seed, config)
+    xtr, ytr, xte, yte, n_classes = (
+        load_task(dataset, seed, config) if external_task is None else external_task
+    )
     partitions = partition_indices(ytr, seed, config)
     if any(len(ids) == 0 for ids in partitions):
         raise ValueError("client shard cannot be empty")
