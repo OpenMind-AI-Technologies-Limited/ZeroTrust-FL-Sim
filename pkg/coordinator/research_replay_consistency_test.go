@@ -269,8 +269,8 @@ func TestConcurrentRevocationAndUpdatePreservesDenial(t *testing.T) {
 			RoundId: 0, BaseModelVersion: "bootstrap",
 			WeightsPayload: payload, WeightsFormat: networkWeightsFormat,
 			UpdateSha256: digest[:],
-			Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
-			Security: lifecycleSecurityMetadata([]byte("race-update-nonce01")),
+			Metrics:      &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
+			Security:     lifecycleSecurityMetadata([]byte("race-update-nonce01")),
 		}
 		revokeReq := &flv1.RevokeRegistrationRequest{
 			NodeId: admin.NodeID, RegistrationId: adminEntry.RegistrationID,
