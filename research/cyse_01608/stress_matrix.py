@@ -56,7 +56,7 @@ def sweep(
         raise ValueError("unknown aggregator")
     if any(x not in PRIVACY_MODES for x in modes):
         raise ValueError("unknown privacy mode")
-    if any(x not in {"sign_flip", "label_flip"} for x in threats):
+    if any(x not in {"sign_flip", "label_flip", "alie_oracle"} for x in threats):
         raise ValueError("unknown attack")
     if any(x not in {"compliant", "bypass"} for x in compliance):
         raise ValueError("unknown attacker compliance policy")
@@ -159,7 +159,7 @@ def main() -> None:
     parser.add_argument("--malicious-clients", type=int, nargs="+", default=[1, 3, 6])
     parser.add_argument("--aggregators", nargs="+", choices=AGGREGATORS, default=["mean", "median", "multi_krum"])
     parser.add_argument("--privacy-modes", nargs="+", choices=PRIVACY_MODES, default=["clip_only", "dp_1"])
-    parser.add_argument("--threats", nargs="+", choices=("sign_flip", "label_flip"), default=["sign_flip"])
+    parser.add_argument("--threats", nargs="+", choices=("sign_flip", "label_flip", "alie_oracle"), default=["sign_flip"])
     parser.add_argument("--attacker-compliance", nargs="+", choices=("compliant", "bypass"), default=["compliant", "bypass"])
     parser.add_argument("--rounds", type=int, default=20)
     parser.add_argument("--failure-threshold-pp", type=float, default=20.0)
