@@ -102,6 +102,17 @@ jobs:
           assert len(rows) == 32
           assert all(0.0 <= float(r["selected_malicious_fraction"]) <= 1.0 for r in rows)
           PY
+      - name: Verify paired RQ2 admission inference
+        run: |
+          python research/cyse_01608/selection_inference.py --input artifacts/cyse_01608_selection/selection_runs.csv --output artifacts/cyse_01608_selection/selection_inference.csv
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          with Path("artifacts/cyse_01608_selection/selection_inference.csv").open(newline="") as stream:
+              rows=list(csv.DictReader(stream))
+          assert len(rows)==4
+          assert all(int(row["dataset_seed_pairs"])==4 for row in rows)
+          PY
       - name: Upload independent results (not original manuscript data)
         if: always()
         uses: actions/upload-artifact@v4
