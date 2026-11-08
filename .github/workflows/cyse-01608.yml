@@ -1,0 +1,58 @@
+name: CYSE-01608 independent reproducibility
+
+on:
+  push:
+    paths:
+      - "research/cyse_01608/**"
+      - ".github/workflows/cyse-01608.yml"
+  pull_request:
+    paths:
+      - "research/cyse_01608/**"
+      - ".github/workflows/cyse-01608.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-reference-study:
+    name: Regression tests and 720-condition matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned standalone study dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy==2.3.5 scipy==1.17.0 scikit-learn==1.8.0 pytest==9.0.2
+      - name: Run research regression tests
+        run: python -m pytest -q research/cyse_01608/tests
+      - name: Execute complete independent 720-condition reference matrix
+        run: |
+          python research/cyse_01608/reproduce.py --output artifacts/cyse_01608
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          p = Path("artifacts/cyse_01608")
+          manifest = json.loads((p / "manifest.json").read_text())
+          with (p / "runs.csv").open(newline="") as f:
+              n = sum(1 for _ in csv.DictReader(f))
+          assert n == 720, n
+          assert manifest["run_count"] == 720
+          assert manifest["total_rounds"] == 14400
+          print(f"Verified independent matrix: {n} runs / {manifest['total_rounds']} rounds")
+          PY
+      - name: Upload independent results (not original manuscript data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyse-01608-independent-reference
+          path: artifacts/cyse_01608/
+          if-no-files-found: ignore
+          retention-days: 30
