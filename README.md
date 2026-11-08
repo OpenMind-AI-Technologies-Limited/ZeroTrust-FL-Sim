@@ -956,3 +956,11 @@ ZeroTrust-FL-Sim is licensed under the **Apache License 2.0**. See [`LICENSE`](L
 The project keeps the research pipeline explicit:
 
 **non-IID learning → adversarial/colluding updates → Local DP → robust or CKKS aggregation → SIMD/CUDA acceleration → PQC mTLS + zero-trust authorization → chaos injection → OpenTelemetry/Prometheus measurement → Grafana analysis**.
+
+---
+
+## CYSE-D-26-01608: independent paper reproducibility audit
+
+The manuscript *Privacy–Robustness Trade-offs in Federated Learning: Local Differential Privacy, Byzantine Aggregation, and CKKS Secure Aggregation* is a **privacy/Byzantine robustness** research study, not a Zero-Trust identity/control-plane manuscript. Its submitted 720-run design used IID-style Breast Cancer/Digits experiments. A deliberately separate **independent reimplementation** with original design parameters, malicious-client DP/clipping bypass, non-IID extensions, statistical analysis and reproducibility workflows is in [research/cyse_01608](research/cyse_01608/README.md). See [measured results and submission blockers](research/cyse_01608/RESULTS.md).
+
+This reimplementation **does not claim to be the source of the originally published/submitted 720 numerical results**. The native CKKS path is addition-only, and deterministic privacy seeds in the research harness are not evidence of production differential privacy.
