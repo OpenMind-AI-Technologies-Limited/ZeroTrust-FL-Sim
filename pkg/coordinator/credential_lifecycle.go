@@ -32,13 +32,16 @@ func (s *Service) RotateRegistration(ctx context.Context, req *flv1.RotateRegist
 	if _, err := s.registry.Validate(identity, req.GetRegistrationId()); err != nil {
 		return nil, status.Error(codes.PermissionDenied, "registration was revoked, rotated, or expired before rotation")
 	}
-	if !s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+	if s.nonceConsumedLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
 		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
 	}
 	entry, err := s.registry.Rotate(identity, req.GetRegistrationId(), nextRegistrationID, s.leaseTTL)
 	if err != nil {
 		return nil, status.Error(codes.PermissionDenied, "registration could not be rotated")
 	}
+	// The successful lifecycle transition and its nonce are committed together
+	// by the durable coordinator wrapper.
+	s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now)
 	return &flv1.RotateRegistrationResponse{
 		Accepted:             true,
 		RegistrationId:       entry.RegistrationID,
@@ -71,13 +74,14 @@ func (s *Service) RevokeRegistration(ctx context.Context, req *flv1.RevokeRegist
 	if _, err := s.registry.Validate(identity, req.GetRegistrationId()); err != nil {
 		return nil, status.Error(codes.PermissionDenied, "admin registration was revoked, rotated, or expired before revocation")
 	}
-	if !s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+	if s.nonceConsumedLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
 		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
 	}
 	entry, err := s.registry.Revoke(req.GetTargetNodeId(), req.GetReason())
 	if err != nil {
 		return nil, mapRegistrationRevocationError(err)
 	}
+	s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now)
 
 	delete(s.pending, entry.NodeID)
 	delete(s.rates, entry.NodeID)

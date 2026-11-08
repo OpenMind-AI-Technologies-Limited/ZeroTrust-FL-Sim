@@ -5,11 +5,10 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TypeAlias
+from typing import Self, TypeAlias
 
 import numpy as np
 import torch
-from typing_extensions import Self
 
 from .client.grpc_worker import (
     MODEL_PROTOCOL_VERSION,

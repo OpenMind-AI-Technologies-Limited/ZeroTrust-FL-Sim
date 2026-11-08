@@ -10,6 +10,8 @@ import (
 
 	flv1 "github.com/smshagor-dev/ZeroTrust-FL-Sim/gen/go/zerotrust/fl/v1"
 	ztsecurity "github.com/smshagor-dev/ZeroTrust-FL-Sim/pkg/security"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,6 +24,8 @@ type DurableService struct {
 	modelID    string
 
 	persistenceMu sync.Mutex
+	// Fenced while durable state may be ambiguous; protected by persistenceMu.
+	fenced bool
 }
 
 func NewDurableService(registry *ztsecurity.RegistrationStore, cfg Config, store StateStore) (*DurableService, error) {
@@ -56,9 +60,23 @@ func NewDurableServiceWithIdentity(registry *ztsecurity.RegistrationStore, cfg C
 	return durable, nil
 }
 
+// requireUnfencedLocked prevents processing new RPCs after the coordinator
+// cannot establish whether a failed state transition is durably rolled back.
+// Re-creating a DurableService requires a successful authoritative recovery.
+func (s *DurableService) requireUnfencedLocked() error {
+	if s.fenced {
+		return status.Error(codes.Unavailable, "coordinator fenced after unresolved durable rollback failure; recover storage and restart")
+	}
+	return nil
+}
+
 func (s *DurableService) RegisterNode(ctx context.Context, req *flv1.RegisterNodeRequest) (*flv1.RegisterNodeResponse, error) {
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
+
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
 
 	before := s.captureSnapshot()
 	response, err := s.service.RegisterNode(ctx, req)
@@ -77,6 +95,10 @@ func (s *DurableService) Heartbeat(ctx context.Context, req *flv1.HeartbeatReque
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
 
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
+
 	before := s.captureSnapshot()
 	response, err := s.service.Heartbeat(ctx, req)
 	if err != nil {
@@ -93,6 +115,10 @@ func (s *DurableService) Heartbeat(ctx context.Context, req *flv1.HeartbeatReque
 func (s *DurableService) GetGlobalModel(ctx context.Context, req *flv1.GetGlobalModelRequest) (*flv1.GlobalModel, error) {
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
+
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
 	return s.service.GetGlobalModel(ctx, req)
 }
 
@@ -100,9 +126,19 @@ func (s *DurableService) SubmitLocalUpdate(ctx context.Context, req *flv1.Submit
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
 
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
+
 	before := s.captureSnapshot()
 	response, err := s.service.SubmitLocalUpdate(ctx, req)
 	if err != nil {
+		// Rejected requests must not leave non-durable nonce/rate/pending mutations
+		// that could behave differently after the next restart.
+		if restoreErr := s.restoreSnapshot(before); restoreErr != nil {
+			s.fenced = true
+			return nil, fmt.Errorf("restore security state after rejected update: %w (original error: %v)", restoreErr, err)
+		}
 		return nil, err
 	}
 	after := s.captureSnapshot()

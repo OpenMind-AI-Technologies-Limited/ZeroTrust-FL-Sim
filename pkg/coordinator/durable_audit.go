@@ -26,6 +26,7 @@ func (s *DurableService) commitOrRollbackTransition(
 	}
 
 	if restoreErr := s.restoreSnapshot(before); restoreErr != nil {
+		s.fenced = true
 		return status.Errorf(codes.Internal, "durable %s commit failed and in-memory rollback failed: %v", operation, restoreErr)
 	}
 	var rollbackErr error
@@ -35,6 +36,7 @@ func (s *DurableService) commitOrRollbackTransition(
 		rollbackErr = s.store.Commit(context.Background(), before)
 	}
 	if rollbackErr != nil {
+		s.fenced = true
 		return status.Errorf(codes.Internal, "durable %s commit failed and persistent rollback failed: %v", operation, rollbackErr)
 	}
 	return status.Errorf(codes.Internal, "durable %s commit failed; previous state restored", operation)

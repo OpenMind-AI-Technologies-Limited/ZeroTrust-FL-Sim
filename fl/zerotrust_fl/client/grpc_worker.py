@@ -15,13 +15,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 import grpc
 import numpy as np
 import psutil
 import torch
-from typing_extensions import Self
 
 TokenSource = Callable[[], str]
 
