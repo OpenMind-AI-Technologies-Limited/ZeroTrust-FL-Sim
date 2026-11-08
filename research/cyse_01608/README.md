@@ -67,3 +67,26 @@ python research/cyse_01608/ckks_benchmark.py --clients 15 --dimension 10000 --tr
 ~~~
 
 This requires native Microsoft SEAL support; it fails explicitly when unavailable. Any numbers are for additive CKKS *correctness, latency and ciphertext volume*, not secure Byzantine filtering or authenticated ciphertext-bound weights.
+
+
+## Crossed privacy/Byzantine sensitivity experiments
+
+The isolated stress runner compares the same held-out test set under paired benign and malicious executions and sweeps client heterogeneity, Byzantine-client count, privacy mode, aggregation rule and attacker compliance. The reported operational failure fraction counts study-specific attack-induced accuracy losses above an **explicitly selected** threshold; this is not a proven security bound.
+
+~~~bash
+python research/cyse_01608/stress_matrix.py --output artifacts/cyse_01608_stress --datasets breast_cancer digits --seeds 0 1 2 3 4 --partitions iid dirichlet --alphas 0.3 1.0 --malicious-clients 1 3 6 --aggregators mean median multi_krum --privacy-modes clip_only dp_1 --threats sign_flip --attacker-compliance compliant bypass --rounds 20
+~~~
+
+Expected output: stress_pairs.csv, stress_summary.csv and stress_manifest.json. The full command is a large execution and may require batching; an interrupted batch is *not* considered completed or included in paper results.
+
+## Actual cybersecurity CSV datasets
+
+The optional CSV loader never downloads or invents an intrusion dataset. Provide your own legally usable benchmark. Specify the true label and, when available, a site/device/session group to prevent leakage from correlated training/test rows. Explicitly exclude IPs, flow identifiers, timestamps, attack label aliases or other columns that could leak target information. Numeric features only are accepted; missing numeric values are imputed using training statistics, and scaling is fitted on training rows only.
+
+Example (replace all column names and path with those of the real dataset):
+
+~~~bash
+python research/cyse_01608/cyber_experiment.py --csv /path/to/intrusion_flows.csv --label attack_label --group device_id --exclude flow_id source_ip destination_ip timestamp --output artifacts/cyse_01608_intrusion --partition dirichlet --alpha 0.3 --seeds 0 1 2 3 4 --rounds 20
+~~~
+
+The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with dataset SHA-256, splits, feature names and source checksum. **No real cybersecurity dataset has been executed as part of the included evidence**; all adapter tests use clearly labeled synthetic fixtures. Class imbalance (macro-F1), targeted/backdoor attack success, external validity and independent data-source verification are still required for journal-level conclusions. The original 720-condition Breast Cancer/Digits evidence remains unchanged and separate.
