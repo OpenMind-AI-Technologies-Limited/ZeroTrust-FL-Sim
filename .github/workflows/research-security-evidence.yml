@@ -100,6 +100,13 @@ jobs:
           set -euo pipefail
           go test -race -json -count=1 ./pkg/coordinator -run '^TestResearchModelMutationBaselineAblation$' \
             | tee research-artifacts/model-mutation-baselines.jsonl
+      - name: Evaluate synthetic non-IID FL availability under worker revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/research/fl_churn_study.py --seeds 12 --alpha 0.3 --out research-artifacts/fl-churn
+          test -s research-artifacts/fl-churn/summary.csv
+          test -s research-artifacts/fl-churn/manifest.json
       - name: Upload evidence, including failing runs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
