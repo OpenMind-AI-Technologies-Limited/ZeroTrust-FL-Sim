@@ -144,15 +144,25 @@ func (s *Service) RegisterNode(ctx context.Context, req *flv1.RegisterNodeReques
 	if req.GetHardware() == nil {
 		return nil, status.Error(codes.InvalidArgument, "hardware profile is required")
 	}
+	now := time.Now().UTC()
+	if err := validateSecurityMetadata(req.GetSecurity(), now); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	registrationID, err := secureIdentifier(24)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "could not create registration")
 	}
+	s.roundMu.Lock()
+	defer s.roundMu.Unlock()
+	if s.nonceConsumedLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
+	}
 	entry, err := s.registry.Register(identity, registrationID, s.leaseTTL)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "could not persist registration")
+		return nil, status.Error(codes.PermissionDenied, "registration was rejected by enrollment policy")
 	}
+	s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now)
 
 	return &flv1.RegisterNodeResponse{
 		Accepted:             true,
@@ -171,10 +181,20 @@ func (s *Service) Heartbeat(ctx context.Context, req *flv1.HeartbeatRequest) (*f
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now().UTC()
+	if err := validateSecurityMetadata(req.GetSecurity(), now); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	s.roundMu.Lock()
+	defer s.roundMu.Unlock()
+	if s.nonceConsumedLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now) {
+		return nil, status.Error(codes.AlreadyExists, "request nonce was already used")
+	}
 	entry, err := s.registry.Refresh(identity, req.GetRegistrationId(), s.leaseTTL)
 	if err != nil {
 		return nil, status.Error(codes.PermissionDenied, "registration is invalid or expired")
 	}
+	s.acceptNonceLocked(req.GetNodeId(), req.GetSecurity().GetNonce(), now)
 
 	model := s.currentModel()
 	return &flv1.HeartbeatResponse{
