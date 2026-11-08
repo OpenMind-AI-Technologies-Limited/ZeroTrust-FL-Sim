@@ -55,6 +55,17 @@ jobs:
       - name: Execute non-IID extension (not part of submitted matrix)
         run: |
           python research/cyse_01608/reproduce.py --output artifacts/cyse_01608_non_iid --partition dirichlet --alpha 0.3 --aggregators mean median multi_krum --privacy-modes clip_only dp_1 --threats benign sign_flip
+      - name: Execute crossed security sensitivity smoke grid
+        run: |
+          python research/cyse_01608/stress_matrix.py --output artifacts/cyse_01608_stress --datasets breast_cancer --seeds 0 1 --partitions iid dirichlet --alphas 0.3 --malicious-clients 1 3 --aggregators mean median --privacy-modes clip_only dp_1 --threats sign_flip --attacker-compliance compliant bypass --rounds 5
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path("artifacts/cyse_01608_stress/stress_manifest.json").read_text())
+          assert m["scenarios"] == 64
+          assert m["executed_runs"] == 128
+          assert m["total_rounds"] == 640
+          PY
       - name: Upload independent results (not original manuscript data)
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,5 +75,6 @@ jobs:
             artifacts/cyse_01608/
             artifacts/cyse_01608_bypass/
             artifacts/cyse_01608_non_iid/
+            artifacts/cyse_01608_stress/
           if-no-files-found: ignore
           retention-days: 30
