@@ -49,3 +49,38 @@ def test_selection_grid_reproducible_smoke(tmp_path):
     assert all(0 <= float(r["selected_malicious_fraction"]) <= 1 for r in rows)
     assert (tmp_path/"selection_summary.csv").exists()
     assert (tmp_path/"selection_manifest.json").exists()
+
+
+def test_selection_inference_paired_and_adjusted():
+    from selection_inference import analyze
+
+    rows = []
+    for dataset in ("a", "b"):
+        for seed in range(5):
+            for policy, admitted, accuracy in (
+                ("compliant", .1, .8), ("bypass", .6, .2)
+            ):
+                rows.append(dict(
+                    dataset=dataset, seed=seed, partition="iid", alpha="",
+                    malicious_clients=3, privacy_mode="dp_1", attack="sign_flip",
+                    attacker_compliance=policy,
+                    selected_malicious_fraction=admitted, attacked_accuracy=accuracy,
+                ))
+    found = analyze(rows)
+    assert len(found) == 1
+    assert found[0]["dataset_seed_pairs"] == 10
+    assert found[0]["mean_bypass_minus_compliant_admission"] == pytest.approx(.5)
+    assert found[0]["mean_bypass_minus_compliant_accuracy"] == pytest.approx(-.6)
+    assert found[0]["holm_adjusted_p"] <= .05
+
+
+def test_selection_inference_rejects_missing_pairs():
+    from selection_inference import analyze
+
+    with pytest.raises(ValueError, match="missing matching"):
+        analyze([dict(
+            dataset="a", seed=0, partition="iid", alpha="",
+            malicious_clients=3, privacy_mode="dp_1", attack="sign_flip",
+            attacker_compliance="bypass", selected_malicious_fraction=.2,
+            attacked_accuracy=.4,
+        )])
