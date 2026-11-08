@@ -79,3 +79,23 @@ def test_holm_adjust_monotone_and_bounded():
 def test_stratified_bootstrap_handles_degenerate_results():
     from security_analysis import stratified_bootstrap_ci
     assert stratified_bootstrap_ci({'a':[0.,0.], 'b':[0.,0.]}, draws=50) == (0.,0.)
+
+
+
+def test_oracle_alie_baseline_is_not_part_of_original_threat_grid():
+    from reproduce import EXTENSION_THREATS, THREATS, alie_oracle_update
+
+    assert "alie_oracle" not in THREATS
+    assert "alie_oracle" in EXTENSION_THREATS
+    honest = np.array([[1.0, 0.0], [3.0, 4.0]])
+    np.testing.assert_allclose(
+        alie_oracle_update(honest, factor=1.5), [0.5, -1.0]
+    )
+    with pytest.raises(ValueError):
+        alie_oracle_update(honest, factor=-1.0)
+    cfg = Config(rounds=3)
+    baseline = run_case("breast_cancer", 0, "mean", "dp_1", "benign", cfg)
+    attacked = run_case("breast_cancer", 0, "mean", "dp_1", "alie_oracle", cfg)
+    assert 0 <= baseline["final_accuracy"] <= 1
+    assert 0 <= attacked["final_accuracy"] <= 1
+    assert attacked["threat"] == "alie_oracle"
