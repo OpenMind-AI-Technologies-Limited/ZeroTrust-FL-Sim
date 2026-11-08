@@ -27,6 +27,7 @@ ORDERS = (1.25, 1.5, 1.75, 2., 3., 4., 5., 8., 10., 16., 32., 64.)
 AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
 PRIVACY_MODES = ("none", "clip_only", "dp_0.5", "dp_1", "dp_2", "dp_4")
 THREATS = ("benign", "sign_flip", "label_flip")
+EXTENSION_THREATS = THREATS + ("alie_oracle",)
 DATASETS = ("breast_cancer", "digits")
 FIELDS = ("dataset", "seed", "partition", "alpha", "aggregator", "privacy_mode",
           "threat", "attacker_compliance", "rounds", "n_clients", "malicious_clients",
@@ -144,6 +145,19 @@ def aggregate(updates: np.ndarray, method: str, config: Config) -> np.ndarray:
     raise ValueError(f"unknown aggregator {method}")
 
 
+def alie_oracle_update(honest_updates: np.ndarray, *, factor: float = 1.5) -> np.ndarray:
+    """Statistics-oracle ALIE attack from Baruch et al. (NeurIPS 2019).
+
+    The attacker sees all exact honest pre-DP update vectors: this is an
+    intentionally STRONG information oracle, not something supported by CKKS.
+    """
+    if honest_updates.ndim != 2 or honest_updates.shape[0] < 2:
+        raise ValueError("ALIE requires at least two honest updates")
+    if not np.isfinite(honest_updates).all() or not np.isfinite(factor) or factor < 0:
+        raise ValueError("ALIE inputs must be finite and factor nonnegative")
+    return honest_updates.mean(axis=0) - factor * honest_updates.std(axis=0)
+
+
 def _noise(seed: int, client: int, round_id: int, shape: tuple[int, ...], scale: float):
     # Common-random-number design between attacked and benign conditions.
     # This deterministic mode is NOT suitable for operational privacy claims.
@@ -160,7 +174,7 @@ def _accuracy_and_loss(x, y, weights):
 def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
              threat: str, config: Config, *,
              external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None) -> dict:
-    if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in THREATS:
+    if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
         raise ValueError("invalid experimental condition")
     xtr, ytr, xte, yte, n_classes = (
         load_task(dataset, seed, config) if external_task is None else external_task
@@ -177,6 +191,22 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
     clipping = privacy_mode != "none"
     noise_std = 2 * config.clip_norm * sigma
     for round_id in range(config.rounds):
+        alie_vector = None
+        if threat == "alie_oracle" and malicious:
+            # This branch is independent of the original 720-run matrix.
+            # Oracle sees honest PRE-privacy vectors, a worst-case attacker.
+            honest_unprotected = []
+            for client in range(config.clients):
+                if client in malicious:
+                    continue
+                x, y = client_x[client], client_y[client]
+                probs = softmax(x @ weights, axis=1)
+                diff = probs.copy()
+                diff[np.arange(len(y)), y] -= 1
+                grad = x.T @ diff / len(y)
+                grad[:-1] += config.l2 * weights[:-1]
+                honest_unprotected.append(-config.learning_rate * grad.reshape(-1))
+            alie_vector = alie_oracle_update(np.stack(honest_unprotected))
         deltas = []
         for client in range(config.clients):
             x = client_x[client]
@@ -191,6 +221,8 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             delta = -config.learning_rate * grad.reshape(-1)
             if threat == "sign_flip" and client in malicious:
                 delta = -config.sign_scale * delta
+            if threat == "alie_oracle" and client in malicious:
+                delta = alie_vector.copy()
             bypass = (config.attacker_compliance == "bypass" and
                       threat != "benign" and client in malicious)
             if clipping and not bypass:
@@ -279,7 +311,7 @@ def main():
     parser.add_argument("--datasets", nargs="+", choices=DATASETS, default=list(DATASETS))
     parser.add_argument("--aggregators", nargs="+", choices=AGGREGATORS, default=list(AGGREGATORS))
     parser.add_argument("--privacy-modes", nargs="+", choices=PRIVACY_MODES, default=list(PRIVACY_MODES))
-    parser.add_argument("--threats", nargs="+", choices=THREATS, default=list(THREATS))
+    parser.add_argument("--threats", nargs="+", choices=EXTENSION_THREATS, default=list(THREATS))
     parser.add_argument("--partition", choices=("iid", "dirichlet"), default="iid")
     parser.add_argument("--alpha", type=float, default=.3)
     parser.add_argument("--attacker-compliance", choices=("compliant", "bypass"), default="compliant")
