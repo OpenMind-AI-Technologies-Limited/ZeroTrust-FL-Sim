@@ -66,6 +66,16 @@ jobs:
           assert m["executed_runs"] == 128
           assert m["total_rounds"] == 640
           PY
+      - name: Execute ALIE statistics-oracle adversarial reference
+        run: |
+          python research/cyse_01608/reproduce.py --output artifacts/cyse_01608_alie --datasets breast_cancer --seeds 0 1 --aggregators median multi_krum --privacy-modes dp_1 --threats benign alie_oracle --attacker-compliance bypass
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path("artifacts/cyse_01608_alie/manifest.json").read_text())
+          assert m["run_count"] == 8
+          assert m["total_rounds"] == 160
+          PY
       - name: Upload independent results (not original manuscript data)
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,5 +86,6 @@ jobs:
             artifacts/cyse_01608_bypass/
             artifacts/cyse_01608_non_iid/
             artifacts/cyse_01608_stress/
+            artifacts/cyse_01608_alie/
           if-no-files-found: ignore
           retention-days: 30
