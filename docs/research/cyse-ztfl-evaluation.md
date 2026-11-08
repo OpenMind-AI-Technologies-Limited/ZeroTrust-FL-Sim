@@ -69,6 +69,12 @@ The abstract checker at `scripts/research/check_authorization_model.py` explores
 
 The `research-security-evidence.yml` workflow records commit-pinned Go regression and race-test JSON for coordinator, security, and protocol cases. These artifacts are **software-validation evidence**, not a measured B0/B1/B2/P comparison. If the runner is unable to execute, report that limitation rather than claiming passing results.
 
+## Narrow authorization-control ablation (not model mutation)
+
+A test-only `TestResearchAuthorizationDecisionAblation` keeps TLS peer parsing, JWT signature verification, claim-to-certificate binding and method-specific roles constant, and examines three authorization gates: B1 (token/role), B2 (B1 plus active enrollment), and P (B2 plus timestamp and single-use nonce). It records six deterministic request scenarios per profile: legitimate, unenrolled, revoked, observer-role denial, replay and stale timestamp.
+
+This study-level comparator **does not run model aggregation or commit model state** and its deliberate removal of controls must not be interpreted as vulnerabilities in some third-party FL implementation. It measures expected decisions of explicit ablations, not an independently benchmarked competitor or an adversarial success probability. Comprehensive B1/B2/P round-mutation baselines remain mandatory for a strong journal claim.
+
 ## Research performance measurement separation
 
 The Go benchmark `BenchmarkResearchAuthenticatedRoundTransition` compares a cryptographically authenticated and authorized in-process model update with file-backed durable commit against the identical in-memory coordinator operation. Both use the same identity, token, model vector, aggregation choice and nonce length, but **no network or model training**. Twenty-five accepted updates per repeated run make the file-durable snapshot cost visible; results are *microbenchmarks* and cannot substitute for RQ4 full RPC, scaled client load, or RQ5 FL availability.

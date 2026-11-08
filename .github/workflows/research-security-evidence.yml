@@ -82,6 +82,12 @@ jobs:
           go test -run '^$' -bench '^BenchmarkResearchAuthenticatedRoundTransition$' \
             -benchmem -benchtime=25x -count=5 ./pkg/coordinator \
             | tee research-artifacts/round-transition-microbenchmark.txt
+      - name: Capture exact authorization-decision ablation cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=1 ./pkg/coordinator -run '^TestResearchAuthorizationDecisionAblation$' \
+            | tee research-artifacts/authorization-ablation-events.jsonl
       - name: Upload evidence, including failing runs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
