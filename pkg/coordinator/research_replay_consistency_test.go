@@ -8,7 +8,6 @@ import (
 
 	flv1 "github.com/smshagor-dev/ZeroTrust-FL-Sim/gen/go/zerotrust/fl/v1"
 	ztsecurity "github.com/smshagor-dev/ZeroTrust-FL-Sim/pkg/security"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -39,7 +38,7 @@ func TestRejectedStaleUpdateDoesNotConsumeNonce(t *testing.T) {
 		RoundId: 0, BaseModelVersion: "stale-version",
 		WeightsPayload: payload, WeightsFormat: networkWeightsFormat,
 		UpdateSha256: digest[:],
-		Metrics: &flv1.LocalUpdateMetrics{SampleCount: 1},
+		Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
 		Security: lifecycleSecurityMetadata([]byte("research-replay-0001")),
 	}
 	invoke := func() (any, error) {
