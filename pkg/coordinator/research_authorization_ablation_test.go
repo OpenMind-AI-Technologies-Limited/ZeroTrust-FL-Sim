@@ -50,11 +50,11 @@ func TestResearchAuthorizationDecisionAblation(t *testing.T) {
 				service.roundMu.Unlock()
 			}
 			type scenario struct {
-				name string
+				name     string
 				identity ztsecurity.PeerIdentity
-				ctx context.Context
+				ctx      context.Context
 				metadata *flv1.SecurityMetadata
-				attack bool
+				attack   bool
 			}
 			testCases := []scenario{
 				{name: "legitimate", identity: good, ctx: goodCtx, metadata: lifecycleSecurityMetadata([]byte("ablation-valid-nonce-01"))},
@@ -62,13 +62,13 @@ func TestResearchAuthorizationDecisionAblation(t *testing.T) {
 				{name: "revoked", identity: revoked, ctx: revokedCtx, metadata: lifecycleSecurityMetadata([]byte("ablation-revoke-nonce01")), attack: true},
 				{name: "role_denied", identity: observer, ctx: observerCtx, metadata: lifecycleSecurityMetadata([]byte("ablation-observe-nonce1")), attack: true},
 				{name: "replay", identity: good, ctx: goodCtx, metadata: lifecycleSecurityMetadata(replayNonce), attack: true},
-				{name: "stale_timestamp", identity: good, ctx: goodCtx, metadata: &flv1.SecurityMetadata{IssuedAtUnix: time.Now().UTC().Add(-5*time.Minute).Unix(), Nonce: []byte("ablation-stale-nonce01")}, attack: true},
+				{name: "stale_timestamp", identity: good, ctx: goodCtx, metadata: &flv1.SecurityMetadata{IssuedAtUnix: time.Now().UTC().Add(-5 * time.Minute).Unix(), Nonce: []byte("ablation-stale-nonce01")}, attack: true},
 			}
 			for _, scenario := range testCases {
 				request := &flv1.SubmitLocalUpdateRequest{
-					NodeId: scenario.identity.NodeID,
-					RegistrationId: "registration-"+scenario.identity.NodeID,
-					Security: scenario.metadata,
+					NodeId:         scenario.identity.NodeID,
+					RegistrationId: "registration-" + scenario.identity.NodeID,
+					Security:       scenario.metadata,
 				}
 				handler := func(_ context.Context, input any) (any, error) {
 					if profile == "P_stateful" {
@@ -97,7 +97,7 @@ func TestResearchAuthorizationDecisionAblation(t *testing.T) {
 				record := map[string]any{
 					"profile": profile, "scenario": scenario.name,
 					"attack": scenario.attack, "accepted": accepted,
-					"grpc_code": status.Code(decisionErr).String(),
+					"grpc_code":     status.Code(decisionErr).String(),
 					"decision_only": true, "model_mutation_executed": false,
 				}
 				encoded, _ := json.Marshal(record)

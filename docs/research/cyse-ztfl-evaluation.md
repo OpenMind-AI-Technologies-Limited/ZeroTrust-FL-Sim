@@ -75,6 +75,10 @@ A test-only `TestResearchAuthorizationDecisionAblation` keeps TLS peer parsing, 
 
 This study-level comparator **does not run model aggregation or commit model state** and its deliberate removal of controls must not be interpreted as vulnerabilities in some third-party FL implementation. It measures expected decisions of explicit ablations, not an independently benchmarked competitor or an adversarial success probability. Comprehensive B1/B2/P round-mutation baselines remain mandatory for a strong journal claim.
 
+## Measured scope of FL round availability
+
+The `TestResearchQuorumAvailabilityWithRevocation` experiment invokes the real Go coordinator's revocation, pending-update and quorum transition methods. It tests that a revoked participant cannot satisfy quorum after revocation; an initially insufficient number of remaining participants stalls the round until an authorized replacement submits. This is a **single deterministic in-process state-transition experiment**. It does not measure distributed availability, network partitions, learning convergence, model accuracy or non-IID sensitivity.
+
 ## Research performance measurement separation
 
 The Go benchmark `BenchmarkResearchAuthenticatedRoundTransition` compares a cryptographically authenticated and authorized in-process model update with file-backed durable commit against the identical in-memory coordinator operation. Both use the same identity, token, model vector, aggregation choice and nonce length, but **no network or model training**. Twenty-five accepted updates per repeated run make the file-durable snapshot cost visible; results are *microbenchmarks* and cannot substitute for RQ4 full RPC, scaled client load, or RQ5 FL availability.
