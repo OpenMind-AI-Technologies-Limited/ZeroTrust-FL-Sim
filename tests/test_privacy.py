@@ -10,6 +10,7 @@ from zerotrust_fl.privacy import (
     CKKSConfig,
     CKKSDecryptor,
     CKKSKeyMaterial,
+    EncryptedUpdate,
     CKKSServerAggregator,
     LocalDPConfig,
     RDPAccountant,
@@ -83,7 +84,7 @@ def test_ckks_server_aggregates_without_secret_key() -> None:
 
     first = client.encrypt(np.array([1.0, 2.0, 3.0]), weight=2.0)
     second = client.encrypt(np.array([4.0, 5.0, 6.0]), weight=1.0)
-    encrypted_mean_numerator = server.aggregate([first, second])
+    encrypted_mean_numerator = server.aggregate([first, second], expected_weights=[2.0, 1.0])
 
     assert not hasattr(server, "secret_key")
     assert encrypted_mean_numerator.weight == pytest.approx(3.0)
@@ -102,6 +103,6 @@ def test_ckks_chunks_vectors_larger_than_one_ciphertext() -> None:
     encrypted = client.encrypt(values)
     assert len(encrypted.chunks) == 2
 
-    aggregated = server.aggregate([encrypted, encrypted])
+    aggregated = server.aggregate([encrypted, encrypted], expected_weights=[1.0, 1.0])
     recovered = decryptor.decrypt_weighted_mean(aggregated)
     np.testing.assert_allclose(recovered, values, rtol=1e-5, atol=1e-5)
