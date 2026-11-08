@@ -15,7 +15,7 @@ import (
 // is whether the authorization interceptor checks active enrollment.
 func BenchmarkResearchRPCPolicyDecision(b *testing.B) {
 	configs := []struct {
-		name               string
+		name              string
 		requireEnrollment bool
 	}{
 		{name: "token_role_only", requireEnrollment: false},
@@ -30,11 +30,11 @@ func BenchmarkResearchRPCPolicyDecision(b *testing.B) {
 				b.Fatal(err)
 			}
 			authorizer.Rules[ztsecurity.MethodGetGlobalModel] = ztsecurity.MethodRule{
-				Roles: []string{"edge-worker"},
+				Roles:               []string{"edge-worker"},
 				RequireRegistration: testCase.requireEnrollment,
 			}
 			req := &flv1.GetGlobalModelRequest{
-				NodeId: identity.NodeID,
+				NodeId:         identity.NodeID,
 				RegistrationId: "research-benchmark-registration",
 			}
 			handler := func(context.Context, any) (any, error) { return nil, nil }
