@@ -45,7 +45,7 @@ def main() -> None:
         weights.append(weight)
         encrypted_updates.append(client_encryptor.encrypt(update, weight=weight))
 
-    encrypted_aggregate = server.aggregate(encrypted_updates)
+    encrypted_aggregate = server.aggregate(encrypted_updates, expected_weights=weights)
     recovered = decryptor.decrypt_weighted_mean(encrypted_aggregate)
     expected = np.average(np.stack(plaintext_updates), axis=0, weights=np.asarray(weights))
 
