@@ -237,3 +237,86 @@ func TestEnrollmentAndHeartbeatNonceReplayDenied(t *testing.T) {
 		t.Fatalf("heartbeat without security metadata: got %v; want InvalidArgument", err)
 	}
 }
+
+// Competing update/revocation requests are serialized at the coordinator
+// mutation boundary. An update may win the race before revocation, but a
+// worker must remain denied once the revocation has completed.
+func TestConcurrentRevocationAndUpdatePreservesDenial(t *testing.T) {
+	for iteration := 0; iteration < 12; iteration++ {
+		registry := ztsecurity.NewRegistrationStore()
+		service, err := NewService(registry, Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		authorizer, privateKey := lifecycleAuthorizer(t, registry)
+		worker, workerCtx := lifecycleAuthorizedPeer(t, privateKey, "race-worker", "edge-worker")
+		admin, adminCtx := lifecycleAuthorizedPeer(t, privateKey, "race-admin", "admin")
+		workerEntry, err := registry.Register(worker, "race-worker-registration", time.Hour)
+		if err != nil {
+			t.Fatal(err)
+		}
+		adminEntry, err := registry.Register(admin, "race-admin-registration", time.Hour)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload, err := encodeNPYFloat32([]float32{1, 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(payload)
+		updateReq := &flv1.SubmitLocalUpdateRequest{
+			NodeId: worker.NodeID, RegistrationId: workerEntry.RegistrationID,
+			RoundId: 0, BaseModelVersion: "bootstrap",
+			WeightsPayload: payload, WeightsFormat: networkWeightsFormat,
+			UpdateSha256: digest[:],
+			Metrics: &flv1.LocalUpdateMetrics{DynamicEpochs: 1, SampleCount: 1},
+			Security: lifecycleSecurityMetadata([]byte("race-update-nonce01")),
+		}
+		revokeReq := &flv1.RevokeRegistrationRequest{
+			NodeId: admin.NodeID, RegistrationId: adminEntry.RegistrationID,
+			TargetNodeId: worker.NodeID, Reason: "compromised worker",
+			Security: lifecycleSecurityMetadata([]byte("race-revoke-nonce01")),
+		}
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		var updateErr, revokeErr error
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, updateErr = invokeLifecycleRPC(authorizer, workerCtx, ztsecurity.MethodSubmitLocalUpdate,
+				updateReq, func(handlerCtx context.Context, input any) (any, error) {
+					return service.SubmitLocalUpdate(handlerCtx, input.(*flv1.SubmitLocalUpdateRequest))
+				})
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			_, revokeErr = invokeLifecycleRPC(authorizer, adminCtx, ztsecurity.MethodRevokeRegistration,
+				revokeReq, func(handlerCtx context.Context, input any) (any, error) {
+					return service.RevokeRegistration(handlerCtx, input.(*flv1.RevokeRegistrationRequest))
+				})
+		}()
+		close(start)
+		wg.Wait()
+		if revokeErr != nil {
+			t.Fatalf("iteration %d: revocation failed: %v", iteration, revokeErr)
+		}
+		if updateErr != nil && status.Code(updateErr) != codes.PermissionDenied {
+			t.Fatalf("iteration %d: unexpected update outcome: %v", iteration, updateErr)
+		}
+		if registry.IsRegistered(worker) {
+			t.Fatalf("iteration %d: worker remained authorized after revocation", iteration)
+		}
+		if _, exists := service.pending[worker.NodeID]; exists {
+			t.Fatalf("iteration %d: revoked worker's pending update survived", iteration)
+		}
+		if _, err := invokeLifecycleRPC(authorizer, workerCtx, ztsecurity.MethodGetGlobalModel,
+			&flv1.GetGlobalModelRequest{NodeId: worker.NodeID, RegistrationId: workerEntry.RegistrationID},
+			func(handlerCtx context.Context, input any) (any, error) {
+				return service.GetGlobalModel(handlerCtx, input.(*flv1.GetGlobalModelRequest))
+			}); status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("iteration %d: post-revocation model access: %v", iteration, err)
+		}
+	}
+}
