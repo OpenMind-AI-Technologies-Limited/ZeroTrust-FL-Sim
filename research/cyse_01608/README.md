@@ -48,3 +48,22 @@ python research/cyse_01608/reproduce.py --output artifacts/cyse_01608_non_iid --
 5. The manuscript cites additional CSVs/Zenodo artifacts that must be independently acquired and compared with these generated results. Differences in seed handling, client shard assignment, malicious client selection, and regularization may change results. Never silently replace original results.
 
 For native CKKS testing, build with ZTFL_ENABLE_CKKS=ON and run the existing privacy tests. A skipped native CKKS test is not evidence that cryptographic integration passed.
+
+
+## Independent evidence and statistical audit
+
+See RESULTS.md for three executed experiment grids, exact local CSV checksums, preliminary bypass comparisons, and mandatory submission gates. For a paired security-compliance analysis after producing the reference and bypass CSVs:
+
+~~~bash
+python research/cyse_01608/security_analysis.py --compliant artifacts/cyse_01608/paired.csv --bypass artifacts/cyse_01608_bypass/paired.csv --output artifacts/cyse_01608_bypass/security_comparison.csv
+~~~
+
+The analysis resamples seeds **within each dataset** for bootstrap intervals and applies Holm correction across reported Wilcoxon paired comparisons.
+
+## CKKS overhead (native build only)
+
+~~~bash
+python research/cyse_01608/ckks_benchmark.py --clients 15 --dimension 10000 --trials 10 --output artifacts/cyse_01608/ckks_benchmark.csv
+~~~
+
+This requires native Microsoft SEAL support; it fails explicitly when unavailable. Any numbers are for additive CKKS *correctness, latency and ciphertext volume*, not secure Byzantine filtering or authenticated ciphertext-bound weights.
