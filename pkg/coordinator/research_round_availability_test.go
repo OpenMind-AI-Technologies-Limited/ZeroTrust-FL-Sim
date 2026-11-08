@@ -100,14 +100,14 @@ func TestResearchQuorumAvailabilityWithRevocation(t *testing.T) {
 		t.Fatalf("replacement worker did not complete quorum; round=%d", got)
 	}
 	record := map[string]any{
-		"study": "control_plane_quorum_availability",
-		"required_updates": 3,
-		"initial_active_workers": 3,
-		"revoked_before_submission": 1,
+		"study":                              "control_plane_quorum_availability",
+		"required_updates":                   3,
+		"initial_active_workers":             3,
+		"revoked_before_submission":          1,
 		"round_completed_before_replacement": false,
-		"round_completed_after_replacement": true,
-		"denied_revoked_worker": true,
-		"network_and_training_evaluated": false,
+		"round_completed_after_replacement":  true,
+		"denied_revoked_worker":              true,
+		"network_and_training_evaluated":     false,
 	}
 	encoded, _ := json.Marshal(record)
 	fmt.Printf("ZTFL_ROUND_AVAILABILITY %s\n", encoded)
