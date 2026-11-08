@@ -14,7 +14,7 @@ from pathlib import Path
 
 from cyber_data import prepare_csv
 from reproduce import (
-    AGGREGATORS, FIELDS, PRIVACY_MODES, THREATS,
+    AGGREGATORS, EXTENSION_THREATS, FIELDS, PRIVACY_MODES,
     Config, paired_results, run_case,
 )
 
@@ -30,7 +30,7 @@ def run_csv_benchmark(
         raise ValueError("unsupported aggregator")
     if any(mode not in PRIVACY_MODES for mode in privacy_modes):
         raise ValueError("unsupported privacy mode")
-    if any(threat not in THREATS or threat == "benign" for threat in threats):
+    if any(threat not in EXTENSION_THREATS or threat == "benign" for threat in threats):
         raise ValueError("unsupported attack threat")
     if any(c not in {"compliant", "bypass"} for c in compliance):
         raise ValueError("unsupported attacker compliance")
@@ -117,7 +117,7 @@ def main() -> None:
     parser.add_argument("--seeds", nargs="+", type=int, default=list(range(5)))
     parser.add_argument("--aggregators", nargs="+", choices=AGGREGATORS, default=["mean", "median", "multi_krum"])
     parser.add_argument("--privacy-modes", nargs="+", choices=PRIVACY_MODES, default=["clip_only", "dp_1"])
-    parser.add_argument("--threats", nargs="+", choices=("sign_flip", "label_flip"), default=["sign_flip"])
+    parser.add_argument("--threats", nargs="+", choices=("sign_flip", "label_flip", "alie_oracle"), default=["sign_flip"])
     parser.add_argument("--attacker-compliance", nargs="+", choices=("compliant", "bypass"), default=["compliant", "bypass"])
     parser.add_argument("--partition", choices=("iid", "dirichlet"), default="dirichlet")
     parser.add_argument("--alpha", type=float, default=0.3)
