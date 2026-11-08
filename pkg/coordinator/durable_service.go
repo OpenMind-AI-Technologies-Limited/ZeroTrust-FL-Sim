@@ -103,6 +103,11 @@ func (s *DurableService) SubmitLocalUpdate(ctx context.Context, req *flv1.Submit
 	before := s.captureSnapshot()
 	response, err := s.service.SubmitLocalUpdate(ctx, req)
 	if err != nil {
+		// Rejected requests must not leave non-durable nonce/rate/pending mutations
+		// that could behave differently after the next restart.
+		if restoreErr := s.restoreSnapshot(before); restoreErr != nil {
+			return nil, fmt.Errorf("restore security state after rejected update: %w (original error: %v)", restoreErr, err)
+		}
 		return nil, err
 	}
 	after := s.captureSnapshot()
