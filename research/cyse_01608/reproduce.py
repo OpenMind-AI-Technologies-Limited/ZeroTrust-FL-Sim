@@ -158,6 +158,24 @@ def alie_oracle_update(honest_updates: np.ndarray, *, factor: float = 1.5) -> np
     return honest_updates.mean(axis=0) - factor * honest_updates.std(axis=0)
 
 
+def multi_krum_selected_clients(updates: np.ndarray, config: Config) -> np.ndarray:
+    """Return accepted client indices; inclusion is NOT proof of honesty.
+
+    Used for supplementary Byzantine-inclusion experiments, without changing
+    the submitted reference-grid aggregation or CSV schema.
+    """
+    if updates.ndim != 2 or not np.isfinite(updates).all():
+        raise ValueError("finite [clients, dimensions] matrix required")
+    n = len(updates)
+    f = config.malicious_clients
+    if n < 2 * f + 3 or not 1 <= config.multi_krum_k <= n - f - 2:
+        raise ValueError("Multi-Krum fault bound not satisfied")
+    distances = ((updates[:, None, :] - updates[None, :, :]) ** 2).sum(axis=2)
+    np.fill_diagonal(distances, np.inf)
+    scores = np.partition(distances, n - f - 3, axis=1)[:, :n - f - 2].sum(axis=1)
+    return np.argsort(scores, kind="stable")[:config.multi_krum_k]
+
+
 def _noise(seed: int, client: int, round_id: int, shape: tuple[int, ...], scale: float):
     # Common-random-number design between attacked and benign conditions.
     # This deterministic mode is NOT suitable for operational privacy claims.
@@ -174,7 +192,8 @@ def _accuracy_and_loss(x, y, weights):
 def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
              threat: str, config: Config, *,
              external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None,
-             include_classification_metrics: bool = False) -> dict:
+             include_classification_metrics: bool = False,
+             include_selection_diagnostics: bool = False) -> dict:
     if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
         raise ValueError("invalid experimental condition")
     xtr, ytr, xte, yte, n_classes = (
@@ -191,6 +210,9 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
     sigma = float(privacy_mode[3:]) if privacy_mode.startswith("dp_") else 0.0
     clipping = privacy_mode != "none"
     noise_std = 2 * config.clip_norm * sigma
+    if include_selection_diagnostics and aggregator != "multi_krum":
+        raise ValueError("client-selection diagnostics require Multi-Krum")
+    selection_counts = []
     for round_id in range(config.rounds):
         alie_vector = None
         if threat == "alie_oracle" and malicious:
@@ -232,7 +254,11 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
                 if sigma:
                     delta = delta + _noise(seed, client, round_id, delta.shape, noise_std)
             deltas.append(delta)
-        weights += aggregate(np.stack(deltas), aggregator, config).reshape(weights.shape)
+        all_updates = np.stack(deltas)
+        if include_selection_diagnostics:
+            selected = multi_krum_selected_clients(all_updates, config)
+            selection_counts.append(sum(int(client) in malicious for client in selected))
+        weights += aggregate(all_updates, aggregator, config).reshape(weights.shape)
     acc, loss = _accuracy_and_loss(xte, yte, weights)
     result = dict(dataset=dataset, seed=seed, partition=config.partition,
                 alpha=config.alpha if config.partition == "dirichlet" else "",
@@ -262,6 +288,13 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             confusion_matrix_json=json.dumps(
                 confusion_matrix(yte, predictions, labels=labels).tolist()
             ),
+        )
+    if include_selection_diagnostics:
+        # This requires experimental ground-truth attacker IDs. Multi-Krum
+        # does NOT establish which selected clients are genuinely honest.
+        result["selected_malicious_count_per_round_json"] = json.dumps(selection_counts)
+        result["selected_malicious_fraction"] = sum(selection_counts) / (
+            config.rounds * config.multi_krum_k
         )
     return result
 
