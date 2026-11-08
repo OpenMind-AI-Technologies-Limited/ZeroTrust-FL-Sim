@@ -1,3 +1,5 @@
+import csv
+import json
 import sys
 from pathlib import Path
 
@@ -30,3 +32,13 @@ def test_real_csv_interface_smoke_with_synthetic_fixture(tmp_path):
     assert result["dataset_sha256"]
     assert (tmp_path / "out" / "cyber_runs.csv").exists()
     assert (tmp_path / "out" / "cyber_manifest.json").exists()
+    with (tmp_path / "out" / "cyber_metrics.csv").open(newline="") as stream:
+        metrics = list(csv.DictReader(stream))
+    assert len(metrics) == 4
+    for row in metrics:
+        assert 0 <= float(row["macro_f1"]) <= 1
+        assert 0 <= float(row["balanced_accuracy"]) <= 1
+        confusion = json.loads(row["confusion_matrix_json"])
+        assert len(confusion) == 2 and len(confusion[0]) == 2
+        assert sum(sum(v) for v in confusion) == 150
+        assert len(json.loads(row["per_class_recall_json"])) == 2
