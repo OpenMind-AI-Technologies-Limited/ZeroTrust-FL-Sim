@@ -19,6 +19,13 @@ from reproduce import (
 )
 
 
+METRIC_FIELDS = (
+    "dataset", "seed", "aggregator", "privacy_mode", "threat",
+    "attacker_compliance", "macro_f1", "balanced_accuracy",
+    "per_class_recall_json", "confusion_matrix_json",
+)
+
+
 def run_csv_benchmark(
     *, csv_path: Path, label: str, group: str | None,
     exclude: tuple[str, ...], output: Path, seeds: tuple[int, ...],
@@ -58,11 +65,13 @@ def run_csv_benchmark(
             dataset_name = "cyber_csv:" + csv_path.stem
             benign = run_case(
                 dataset_name, seed, aggregator, privacy, "benign",
-                config, external_task=prepared.data
+                config, external_task=prepared.data,
+                include_classification_metrics=True
             )
             attacked = run_case(
                 dataset_name, seed, aggregator, privacy, threat,
-                config, external_task=prepared.data
+                config, external_task=prepared.data,
+                include_classification_metrics=True
             )
             clean_key = (
                 seed, aggregator, privacy, policy, config.partition, config.alpha
@@ -73,9 +82,16 @@ def run_csv_benchmark(
             runs.append(attacked)
 
     with (output / "cyber_runs.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDS)
+        writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(runs)
+    # Report class-imbalance-sensitive evidence separately from the original
+    # manuscript-design CSV schema, including full confusion matrices.
+    with (output / "cyber_metrics.csv").open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=METRIC_FIELDS)
+        writer.writeheader()
+        for item in runs:
+            writer.writerow({name: item[name] for name in METRIC_FIELDS})
     pairs = paired_results(runs)
     with (output / "cyber_pairs.csv").open("w", newline="", encoding="utf-8") as f:
         columns = list(pairs[0]) if pairs else []
@@ -96,7 +112,7 @@ def run_csv_benchmark(
         "partition": partition, "alpha": alpha,
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "warning": (
-            "No dataset-specific leakage audit, class-imbalance metrics, "
+            "No dataset-specific leakage audit, "
             "state-of-art baselines or cryptographic security proofs yet. "
             "Deterministically seeded noise is not production differential privacy."
         ),
