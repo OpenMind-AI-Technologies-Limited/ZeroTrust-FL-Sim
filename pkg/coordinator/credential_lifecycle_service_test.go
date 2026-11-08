@@ -153,6 +153,7 @@ func TestAdminRevokeRegistrationBlocksAccessAndReregistration(t *testing.T) {
 			NodeId:                workerIdentity.NodeID,
 			CertificateCommonName: workerIdentity.CommonName,
 			Hardware:              &flv1.HardwareProfile{Architecture: "test"},
+			Security:              lifecycleSecurityMetadata([]byte("revoked-reenroll-001")),
 		},
 		func(handlerCtx context.Context, req any) (any, error) {
 			return service.RegisterNode(handlerCtx, req.(*flv1.RegisterNodeRequest))
