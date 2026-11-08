@@ -23,6 +23,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y protobuf-compiler
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          make proto
           go get golang.org/x/net@v0.62.0 github.com/go-jose/go-jose/v4@v4.1.6
           go mod tidy
           go mod verify
