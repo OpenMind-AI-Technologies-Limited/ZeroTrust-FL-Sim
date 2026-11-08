@@ -164,7 +164,7 @@ func TestAdminRevokeRegistrationBlocksAccessAndReregistration(t *testing.T) {
 	}
 }
 
-func lifecycleAuthorizer(t *testing.T, registry *ztsecurity.RegistrationStore) (*ztsecurity.Authorizer, ed25519.PrivateKey) {
+func lifecycleAuthorizer(t testing.TB, registry *ztsecurity.RegistrationStore) (*ztsecurity.Authorizer, ed25519.PrivateKey) {
 	t.Helper()
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -181,7 +181,7 @@ func lifecycleAuthorizer(t *testing.T, registry *ztsecurity.RegistrationStore) (
 	return authorizer, privateKey
 }
 
-func lifecycleAuthorizedPeer(t *testing.T, privateKey ed25519.PrivateKey, nodeID, role string) (ztsecurity.PeerIdentity, context.Context) {
+func lifecycleAuthorizedPeer(t testing.TB, privateKey ed25519.PrivateKey, nodeID, role string) (ztsecurity.PeerIdentity, context.Context) {
 	t.Helper()
 	uri, err := url.Parse("spiffe://" + ztsecurity.DefaultTrustDomain + "/node/" + nodeID)
 	if err != nil {
