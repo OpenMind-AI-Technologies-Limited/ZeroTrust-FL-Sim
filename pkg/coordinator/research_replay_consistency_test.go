@@ -177,3 +177,63 @@ func TestConcurrentDuplicateUpdatesCommitOnce(t *testing.T) {
 		t.Fatalf("model advanced to round %d, want exactly round 1", model.GetRoundId())
 	}
 }
+
+// Enrollment and lease renewal are security-state mutations and must not be
+// exempted from the same single-use nonce requirement as model updates.
+func TestEnrollmentAndHeartbeatNonceReplayDenied(t *testing.T) {
+	registry := ztsecurity.NewRegistrationStore()
+	service, err := NewService(registry, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizer, privateKey := lifecycleAuthorizer(t, registry)
+	identity, ctx := lifecycleAuthorizedPeer(t, privateKey, "enrollment-worker", "edge-worker")
+	registerReq := &flv1.RegisterNodeRequest{
+		NodeId: identity.NodeID,
+		CertificateCommonName: identity.CommonName,
+		Hardware: &flv1.HardwareProfile{Architecture: "test"},
+		Security: lifecycleSecurityMetadata([]byte("enroll-replay-0001")),
+	}
+	register := func() (any, error) {
+		return invokeLifecycleRPC(authorizer, ctx, ztsecurity.MethodRegisterNode,
+			registerReq, func(handlerCtx context.Context, input any) (any, error) {
+				return service.RegisterNode(handlerCtx, input.(*flv1.RegisterNodeRequest))
+			})
+	}
+	first, err := register()
+	if err != nil {
+		t.Fatalf("valid enrollment: %v", err)
+	}
+	registered := first.(*flv1.RegisterNodeResponse)
+	if _, err := register(); status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("enrollment replay: got %v; want AlreadyExists", err)
+	}
+	regEntry, err := registry.Validate(identity, registered.GetRegistrationId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if regEntry.Generation != registered.GetCredentialGeneration() {
+		t.Fatal("enrollment replay unexpectedly advanced credential generation")
+	}
+	heartbeatReq := &flv1.HeartbeatRequest{
+		NodeId: identity.NodeID,
+		RegistrationId: registered.GetRegistrationId(),
+		Security: lifecycleSecurityMetadata([]byte("heartbeat-replay01")),
+	}
+	heartbeat := func() (any, error) {
+		return invokeLifecycleRPC(authorizer, ctx, ztsecurity.MethodHeartbeat,
+			heartbeatReq, func(handlerCtx context.Context, input any) (any, error) {
+				return service.Heartbeat(handlerCtx, input.(*flv1.HeartbeatRequest))
+			})
+	}
+	if _, err := heartbeat(); err != nil {
+		t.Fatalf("valid heartbeat: %v", err)
+	}
+	if _, err := heartbeat(); status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("heartbeat replay: got %v; want AlreadyExists", err)
+	}
+	heartbeatReq.Security = nil
+	if _, err := heartbeat(); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("heartbeat without security metadata: got %v; want InvalidArgument", err)
+	}
+}
