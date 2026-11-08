@@ -87,6 +87,21 @@ jobs:
           assert m["run_count"] == 8
           assert m["total_rounds"] == 160
           PY
+      - name: Execute RQ2 Multi-Krum oracle admission diagnostic
+        run: |
+          python research/cyse_01608/selection_experiment.py --output artifacts/cyse_01608_selection --datasets breast_cancer digits --seeds 0 1 --partitions iid dirichlet --alphas 0.3 --malicious-clients 3 --privacy-modes clip_only dp_1 --attacker-compliance compliant bypass --rounds 5
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          p = Path("artifacts/cyse_01608_selection")
+          m = json.loads((p / "selection_manifest.json").read_text())
+          assert m["runs"] == 32
+          assert m["total_rounds"] == 160
+          with (p / "selection_runs.csv").open(newline="") as s:
+              rows = list(csv.DictReader(s))
+          assert len(rows) == 32
+          assert all(0.0 <= float(r["selected_malicious_fraction"]) <= 1.0 for r in rows)
+          PY
       - name: Upload independent results (not original manuscript data)
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,5 +113,6 @@ jobs:
             artifacts/cyse_01608_non_iid/
             artifacts/cyse_01608_stress/
             artifacts/cyse_01608_alie/
+            artifacts/cyse_01608_selection/
           if-no-files-found: ignore
           retention-days: 30
