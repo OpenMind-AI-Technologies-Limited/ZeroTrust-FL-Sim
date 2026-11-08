@@ -1,0 +1,110 @@
+name: Zero-Trust Research Security Evidence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'pkg/coordinator/**'
+      - 'pkg/security/**'
+      - 'tests/security_test.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'proto/**'
+      - 'scripts/research/**'
+      - 'docs/research/cyse-ztfl-evaluation.md'
+      - '.github/workflows/research-security-evidence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-invariants:
+    name: Commit-pinned coordinator race and replay evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Install protobuf compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Generate Go protocol
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          make proto
+          go mod tidy
+      - name: Capture run provenance
+        run: |
+          mkdir -p research-artifacts
+          {
+            echo "git_sha=${GITHUB_SHA}"
+            echo "git_ref=${GITHUB_REF}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            echo "utc_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            go version
+            uname -a
+          } > research-artifacts/provenance.txt
+      - name: Check bounded authorization state-machine properties
+        run: python3 scripts/research/check_authorization_model.py --output research-artifacts/model-state-space.json
+      - name: Execute security invariants with race detector
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=1 ./pkg/security ./pkg/coordinator ./tests \
+            | tee research-artifacts/security-test-events.jsonl
+      - name: Repeat replay and lifecycle regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=5 ./pkg/coordinator \
+            -run 'Test(RejectedStaleUpdateDoesNotConsumeNonce|FailedRevocationDoesNotConsumeNonce|ConcurrentDuplicateUpdatesCommitOnce|EnrollmentAndHeartbeatNonceReplayDenied|RotateRegistrationRPCRejectsOldCredentialAndReplay|AdminRevokeRegistrationBlocksAccessAndReregistration|DurableCredentialRotationRollbackRestoresOldCredential|DurableRevocationRollbackRestoresRegistrationAndPendingUpdate|UncertainPersistentRollbackFencesEveryCoordinatorRPC|RecoverableRollbackDoesNotFenceCoordinator)$' \
+            | tee research-artifacts/lifecycle-repeated-events.jsonl
+      - name: Repeat matched in-process authorization microbenchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -run '^$' -bench '^BenchmarkResearchRPCPolicyDecision$' \
+            -benchmem -benchtime=1s -count=5 ./pkg/coordinator \
+            | tee research-artifacts/authorization-policy-microbenchmark.txt
+      - name: Compare authenticated in-memory and file-durable round commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -run '^$' -bench '^BenchmarkResearchAuthenticatedRoundTransition$' \
+            -benchmem -benchtime=25x -count=5 ./pkg/coordinator \
+            | tee research-artifacts/round-transition-microbenchmark.txt
+      - name: Capture exact authorization-decision ablation cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=1 ./pkg/coordinator -run '^TestResearchAuthorizationDecisionAblation$' \
+            | tee research-artifacts/authorization-ablation-events.jsonl
+      - name: Verify coordinator round availability after participant revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=1 ./pkg/coordinator -run '^TestResearchQuorumAvailabilityWithRevocation$' \
+            | tee research-artifacts/quorum-availability-events.jsonl
+      - name: Capture model-mutation baseline ablation results
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -count=1 ./pkg/coordinator -run '^TestResearchModelMutationBaselineAblation$' \
+            | tee research-artifacts/model-mutation-baselines.jsonl
+      - name: Upload evidence, including failing runs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ztfl-security-evidence-${{ github.sha }}
+          path: research-artifacts/
+          if-no-files-found: warn
+          retention-days: 90

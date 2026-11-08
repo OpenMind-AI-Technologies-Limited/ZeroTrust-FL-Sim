@@ -10,6 +10,10 @@ func (s *DurableService) RotateRegistration(ctx context.Context, req *flv1.Rotat
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
 
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
+
 	before := s.captureSnapshot()
 	response, err := s.service.RotateRegistration(ctx, req)
 	if err != nil {
@@ -26,6 +30,10 @@ func (s *DurableService) RotateRegistration(ctx context.Context, req *flv1.Rotat
 func (s *DurableService) RevokeRegistration(ctx context.Context, req *flv1.RevokeRegistrationRequest) (*flv1.RevokeRegistrationResponse, error) {
 	s.persistenceMu.Lock()
 	defer s.persistenceMu.Unlock()
+
+	if err := s.requireUnfencedLocked(); err != nil {
+		return nil, err
+	}
 
 	before := s.captureSnapshot()
 	response, err := s.service.RevokeRegistration(ctx, req)

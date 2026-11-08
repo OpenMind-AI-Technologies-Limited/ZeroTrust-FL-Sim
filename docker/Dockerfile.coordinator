@@ -18,14 +18,16 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12 \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/certgen ./security
 
 FROM golang:1.27.3-alpine AS health-probe-builder
-# Build a pinned probe release with explicitly patched transitive dependencies.
-# Plain go install pkg@version ignores overrides in the current module.
-ARG GRPC_HEALTH_PROBE_VERSION=v0.4.60
-WORKDIR /health-probe
-RUN go mod init github.com/smshagor-dev/ZeroTrust-FL-Sim/probe-build \
-    && go get github.com/grpc-ecosystem/grpc-health-probe@${GRPC_HEALTH_PROBE_VERSION} \
-    && go get github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0 \
-    && CGO_ENABLED=0 go build -trimpath -o /go/bin/grpc-health-probe github.com/grpc-ecosystem/grpc-health-probe
+ARG GRPC_HEALTH_PROBE_COMMIT=82e04432a7344c01c56406a6ddf5c8b6841d5a65
+# Compile the commit-pinned probe with security-fixed transitive modules;
+# a bare "go install module@commit" does not allow module-version overrides.
+RUN mkdir -p /health-probe /out \
+    && cd /health-probe \
+    && go mod init ztfl-health-probe-build \
+    && go get github.com/grpc-ecosystem/grpc-health-probe@${GRPC_HEALTH_PROBE_COMMIT} \
+    && go get github.com/go-jose/go-jose/v4@v4.1.6 \
+    && go get golang.org/x/net@v0.62.0 \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/grpc_health_probe github.com/grpc-ecosystem/grpc-health-probe
 
 FROM alpine:3.24 AS runtime
 
@@ -38,7 +40,7 @@ RUN apk upgrade --no-cache \
 
 COPY --from=builder /out/coordinator /usr/local/bin/coordinator
 COPY --from=builder /out/certgen /usr/local/bin/certgen
-COPY --from=health-probe-builder /go/bin/grpc-health-probe /usr/local/bin/grpc_health_probe
+COPY --from=health-probe-builder /out/grpc_health_probe /usr/local/bin/grpc_health_probe
 COPY docker/generate-dev-pki.sh /usr/local/bin/generate-dev-pki.sh
 RUN chmod 0555 /usr/local/bin/generate-dev-pki.sh
 
