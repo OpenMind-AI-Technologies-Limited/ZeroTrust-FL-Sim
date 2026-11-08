@@ -10,6 +10,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - 'proto/**'
+      - 'scripts/research/**'
       - 'docs/research/cyse-ztfl-evaluation.md'
       - '.github/workflows/research-security-evidence.yml'
 
@@ -52,6 +53,8 @@ jobs:
             go version
             uname -a
           } > research-artifacts/provenance.txt
+      - name: Check bounded authorization state-machine properties
+        run: python3 scripts/research/check_authorization_model.py --output research-artifacts/model-state-space.json
       - name: Execute security invariants with race detector
         shell: bash
         run: |
@@ -63,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           go test -race -json -count=5 ./pkg/coordinator \
-            -run 'Test(RejectedStaleUpdateDoesNotConsumeNonce|FailedRevocationDoesNotConsumeNonce|ConcurrentDuplicateUpdatesCommitOnce|EnrollmentAndHeartbeatNonceReplayDenied|RotateRegistrationRPCRejectsOldCredentialAndReplay|AdminRevokeRegistrationBlocksAccessAndReregistration|DurableCredentialRotationRollbackRestoresOldCredential|DurableRevocationRollbackRestoresRegistrationAndPendingUpdate)$' \
+            -run 'Test(RejectedStaleUpdateDoesNotConsumeNonce|FailedRevocationDoesNotConsumeNonce|ConcurrentDuplicateUpdatesCommitOnce|EnrollmentAndHeartbeatNonceReplayDenied|RotateRegistrationRPCRejectsOldCredentialAndReplay|AdminRevokeRegistrationBlocksAccessAndReregistration|DurableCredentialRotationRollbackRestoresOldCredential|DurableRevocationRollbackRestoresRegistrationAndPendingUpdate|UncertainPersistentRollbackFencesEveryCoordinatorRPC|RecoverableRollbackDoesNotFenceCoordinator)$' \
             | tee research-artifacts/lifecycle-repeated-events.jsonl
       - name: Repeat matched in-process authorization microbenchmarks
         shell: bash

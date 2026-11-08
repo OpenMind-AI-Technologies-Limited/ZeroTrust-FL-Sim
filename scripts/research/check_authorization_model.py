@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import deque
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 WORKERS = 2

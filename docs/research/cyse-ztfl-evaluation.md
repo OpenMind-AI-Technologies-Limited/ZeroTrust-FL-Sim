@@ -59,6 +59,12 @@ For every run, preserve: full Git SHA, source tree cleanliness, OS/kernel, Go/Py
 
 Record events individually before aggregation. Publish raw CSV/JSON and an explicit command that reconstructs every figure. Use repeated independent runs for performance and FL measurements; report median, dispersion and confidence intervals. Do not convert deterministic 22/22 acceptance cases to a general security probability.
 
+## Formal specification and fail-stop recovery
+
+The safety objective is **commit-time authorization**, not permanent trust in the contents of model updates. A successful acknowledged transition must pair the selected worker/credential generation, current round/version, request nonce, and the durable update or revocation state. A failed disk commit with successful rollback returns an error and retains the old valid state. **If the rollback itself cannot be persisted, the durable service is fenced and all six RPC methods return Unavailable until independently validated recovery.** This is not a guarantee that a failed revocation was applied; a failed revocation with successful rollback leaves the old lease in force.
+
+The abstract checker at `scripts/research/check_authorization_model.py` explores **two workers, two nonces each, up to three model commits, nine transitions and at most one ambiguous persistence fault**, including either result of that failed disk write. Its unsafe replay mutant must yield a counterexample. Passing the checker establishes properties of that bounded *specification*, not correspondence with Go code or correctness for arbitrary concurrency sizes. The accompanying Go race and fault-injection tests exercise selected implementation paths separately.
+
 ## Automated implementation evidence
 
 The `research-security-evidence.yml` workflow records commit-pinned Go regression and race-test JSON for coordinator, security, and protocol cases. These artifacts are **software-validation evidence**, not a measured B0/B1/B2/P comparison. If the runner is unable to execute, report that limitation rather than claiming passing results.
