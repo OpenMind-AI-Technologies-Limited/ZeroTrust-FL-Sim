@@ -187,11 +187,12 @@ def test_raw_confusion_inconsistency_rejected_even_if_hash_reset(three, tmp_path
 
 def test_frozen_three_source_digest_rejects_drift(three, tmp_path):
     result = check_three(*three, tmp_path/"first")
-    fields = ("run_sha256", "pair_sha256", "summary_sha256",
-              "manifest_sha256", "seed_J_sha256", "result_sha256")
+    fields = ("semantic_run_sha256", "pair_sha256", "summary_sha256",
+              "semantic_manifest_sha256", "seed_J_sha256",
+              "semantic_result_sha256")
     freeze = dict(
         protocol_id="CYSE-01608-P1-root-trust-vs-distance-selection",
-        freeze_id="P1-2026-11-09-raw-evidence-v1",
+        freeze_id="P1-2026-11-09-semantic-evidence-v2",
         sha256_by_source={
             r["dataset"]: {k: r[k] for k in fields}
             for r in result["source_results"]
@@ -200,7 +201,7 @@ def test_frozen_three_source_digest_rejects_drift(three, tmp_path):
     frozen_path = tmp_path/"frozen.json"
     frozen_path.write_text(json.dumps(freeze))
     check_three(*three, tmp_path/"second", frozen_path=frozen_path)
-    freeze["sha256_by_source"]["UNSW-NB15"]["run_sha256"] = "0"*64
+    freeze["sha256_by_source"]["UNSW-NB15"]["semantic_run_sha256"] = "0"*64
     frozen_path.write_text(json.dumps(freeze))
     with pytest.raises(ValueError, match="frozen evidence drift"):
         check_three(*three, tmp_path/"third", frozen_path=frozen_path)
