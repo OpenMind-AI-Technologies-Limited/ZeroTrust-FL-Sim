@@ -26,8 +26,9 @@ METHODS = ("mean", "multi_krum", "rfa",
 PRIVACY = ("clip_only", "dp_1")
 ATTACKS = ("sign_flip", "alie_oracle")
 POLICIES = ("compliant", "bypass")
+OPTIONAL_METHODS = ("fltrust",)
 METRICS = ("macro_f1", "balanced_accuracy", "per_class_recall_json",
-           "confusion_matrix_json")
+           "confusion_matrix_json", "trusted_root_rows")
 SUMMARY = (
     "dataset", "aggregator", "privacy_mode", "attacker_compliance",
     "threat", "observations", "mean_clean_accuracy",
@@ -47,18 +48,23 @@ def evaluate(
     train_limit: int | None = 6000, test_limit: int | None = 3000,
     partition: str = "dirichlet", alpha: float = 0.3,
     verify_sources: bool = True,
+    trusted_root_fraction: float = 0.0,
 ) -> dict:
     if dataset not in {"UNSW-NB15", "NSL-KDD"}:
         raise ValueError("unsupported dataset")
     if not all((seeds, methods, privacy_modes, policies, attacks)):
         raise ValueError("empty experiment selection")
-    if (set(methods) - set(METHODS) or set(privacy_modes) - set(PRIVACY)
+    if (set(methods) - set(METHODS + OPTIONAL_METHODS) or set(privacy_modes) - set(PRIVACY)
             or set(policies) - set(POLICIES) or set(attacks) - set(ATTACKS)):
         raise ValueError("unknown experimental factor")
     if len(set(seeds)) != len(seeds) or len(set(methods)) != len(methods):
         raise ValueError("duplicate seeds or aggregation methods")
     if rounds < 1:
         raise ValueError("at least one training round required")
+    if "fltrust" in methods and trusted_root_fraction <= 0:
+        raise ValueError("FLTrust requires a positive independent trusted root fraction")
+    if not 0 <= trusted_root_fraction < .5:
+        raise ValueError("invalid trusted root allocation")
     if not 0 < malicious_clients < 15:
         raise ValueError("invalid malicious client population")
 
@@ -85,7 +91,8 @@ def evaluate(
             cfg = Config(
                 rounds=rounds, malicious_clients=malicious_clients,
                 partition=partition, alpha=alpha, attacker_compliance=policy,
-                multi_krum_k=min(5, 15-malicious_clients-2)
+                multi_krum_k=min(5, 15-malicious_clients-2),
+                trusted_root_fraction=trusted_root_fraction,
             )
             for threat in ("benign", *attacks):
                 records.append(run_case(
@@ -158,6 +165,7 @@ def evaluate(
         "policies": policies, "attacks": attacks,
         "rounds": rounds, "malicious_clients": malicious_clients,
         "partition": partition, "alpha": alpha,
+        "trusted_root_fraction": trusted_root_fraction,
         "executions": len(records), "federated_rounds": len(records)*rounds,
         "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "robust_baselines_sha256": hashlib.sha256(
@@ -191,11 +199,12 @@ def main() -> None:
     p.add_argument("--test",type=Path,required=True)
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--seeds",nargs="+",type=int,default=[0,1,2,3,4])
-    p.add_argument("--methods",nargs="+",choices=METHODS,default=list(METHODS))
+    p.add_argument("--methods",nargs="+",choices=METHODS+OPTIONAL_METHODS,default=list(METHODS))
     p.add_argument("--privacy",nargs="+",choices=PRIVACY,default=list(PRIVACY))
     p.add_argument("--attacks",nargs="+",choices=ATTACKS,default=["sign_flip"])
     p.add_argument("--policies",nargs="+",choices=POLICIES,default=list(POLICIES))
     p.add_argument("--rounds",type=int,default=20)
+    p.add_argument("--trusted-root-fraction",type=float,default=0.0)
     p.add_argument("--train-limit",type=int,default=6000)
     p.add_argument("--test-limit",type=int,default=3000)
     a=p.parse_args()
@@ -204,7 +213,8 @@ def main() -> None:
         seeds=tuple(a.seeds),methods=tuple(a.methods),
         privacy_modes=tuple(a.privacy),attacks=tuple(a.attacks),
         policies=tuple(a.policies),rounds=a.rounds,
-        train_limit=a.train_limit,test_limit=a.test_limit
+        train_limit=a.train_limit,test_limit=a.test_limit,
+        trusted_root_fraction=a.trusted_root_fraction,
     )
     print(json.dumps({"dataset":a.dataset,
                       "executions":manifest["executions"],
