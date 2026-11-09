@@ -49,7 +49,7 @@ No paper should claim confidential and Byzantine-robust aggregation jointly unti
 | Secure encrypted Byzantine filtering with CKKS | Not implemented | **Unsupported: do not claim** |
 | A production formal local DP guarantee | Deterministic research simulator | **Unsupported: do not claim** |
 | Novel security theorem, new algorithm or first-ever combined architecture | None yet | **Unsupported: do not claim** |
-| Real network intrusion benchmark superiority | Generic CSV adapter only | **Unsupported until genuine dataset runs** |
+| Sampled real network intrusion benchmark | UNSW-NB15 official train/test split, 80 real runs/5 seeds | Exploratory evaluation completed; no state-of-the-art superiority, generalization, or novel algorithm demonstrated |
 
 ## Manuscript submission gate
 
