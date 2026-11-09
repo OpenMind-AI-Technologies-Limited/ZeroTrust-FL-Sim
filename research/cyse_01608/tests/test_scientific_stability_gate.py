@@ -176,3 +176,42 @@ def test_raw_confusion_inconsistency_rejected_even_if_hash_reset(three, tmp_path
     manifest_path.write_text(json.dumps(m))
     with pytest.raises(ValueError, match="macro F1"):
         check_three(*three, tmp_path/"out")
+
+
+def test_frozen_three_source_digest_rejects_drift(three, tmp_path):
+    result = check_three(*three, tmp_path/"first")
+    fields = ("run_sha256", "pair_sha256", "summary_sha256",
+              "manifest_sha256", "seed_J_sha256", "result_sha256")
+    freeze = dict(
+        protocol_id="CYSE-01608-P1-root-trust-vs-distance-selection",
+        freeze_id="P1-2026-11-09-raw-evidence-v1",
+        sha256_by_source={
+            r["dataset"]: {k: r[k] for k in fields}
+            for r in result["source_results"]
+        },
+    )
+    frozen_path = tmp_path/"frozen.json"
+    frozen_path.write_text(json.dumps(freeze))
+    check_three(*three, tmp_path/"second", frozen_path=frozen_path)
+    freeze["sha256_by_source"]["UNSW-NB15"]["run_sha256"] = "0"*64
+    frozen_path.write_text(json.dumps(freeze))
+    with pytest.raises(ValueError, match="frozen evidence drift"):
+        check_three(*three, tmp_path/"third", frozen_path=frozen_path)
+
+
+def test_published_holm_cannot_disagree_with_raw_results(three, tmp_path):
+    result = check_three(*three, tmp_path/"first")
+    published = [dict(
+        dataset=r["dataset"], mean_J_pp=r["mean_J_pp"],
+        exact_positive_sign_test_p=r["one_sided_exact_p"],
+        holm3_adjusted_p=r["holm3_adjusted_p"],
+        positive=r["positive"], negative=r["negative"], zero=r["zero"],
+        significant_at_familywise_0_05=r["significant_at_familywise_0_05"]
+    ) for r in result["source_results"]]
+    report = tmp_path/"holm.json"
+    report.write_text(json.dumps(published))
+    check_three(*three, tmp_path/"second", published_holm=report)
+    published[2]["holm3_adjusted_p"] = .99
+    report.write_text(json.dumps(published))
+    with pytest.raises(ValueError, match="published Holm"):
+        check_three(*three, tmp_path/"third", published_holm=report)
