@@ -223,3 +223,54 @@ def test_published_holm_cannot_disagree_with_raw_results(three, tmp_path):
     report.write_text(json.dumps(published))
     with pytest.raises(ValueError, match="published Holm"):
         check_three(*three, tmp_path/"third", published_holm=report)
+
+
+def _edit_loss_and_relink_source_hashes(root, replacement):
+    data = root/"evidence"/"confirmatory"
+    runs = data/"baseline_runs.csv"
+    manifest = data/"baseline_manifest.json"
+    reported = root/"evidence"/"primary_analysis"/"source_result.json"
+    rows = list(csv.DictReader(runs.open()))
+    rows[0]["final_loss"] = replacement
+    write_csv(runs, rows)
+    m = json.loads(manifest.read_text())
+    m["raw_csv_sha256"] = digest(runs)
+    manifest.write_text(json.dumps(m))
+    p = json.loads(reported.read_text())
+    p["original_experiment_runs_sha256"] = digest(runs)
+    p["original_experiment_manifest_sha256"] = digest(manifest)
+    reported.write_text(json.dumps(p))
+
+
+def test_loss_last_bit_tolerance_does_not_rewrite_p1_claim(three, tmp_path):
+    original = check_three(*three, tmp_path/"a")["source_results"][0]
+    _edit_loss_and_relink_source_hashes(three[0], "0.60000000000001")
+    revised = check_three(*three, tmp_path/"b")["source_results"][0]
+    assert original["run_sha256"] != revised["run_sha256"]
+    assert original["semantic_run_sha256"] == revised["semantic_run_sha256"]
+    assert original["semantic_manifest_sha256"] == revised["semantic_manifest_sha256"]
+    assert original["semantic_result_sha256"] == revised["semantic_result_sha256"]
+    assert original["seed_J_sha256"] == revised["seed_J_sha256"]
+
+
+def test_material_loss_change_is_not_tolerated_by_semantic_freeze(three, tmp_path):
+    original = check_three(*three, tmp_path/"a")["source_results"]
+    frozen = dict(
+        protocol_id="CYSE-01608-P1-root-trust-vs-distance-selection",
+        freeze_id="P1-2026-11-09-semantic-evidence-v2",
+        sha256_by_source={
+            r["dataset"]: {
+                k: r[k] for k in (
+                    "semantic_run_sha256", "pair_sha256", "summary_sha256",
+                    "semantic_manifest_sha256", "seed_J_sha256",
+                    "semantic_result_sha256",
+                )
+            }
+            for r in original
+        },
+    )
+    path = tmp_path/"freeze.json"
+    path.write_text(json.dumps(frozen))
+    _edit_loss_and_relink_source_hashes(three[0], "0.61")
+    with pytest.raises(ValueError, match="P1 frozen evidence drift"):
+        check_three(*three, tmp_path/"b", frozen_path=path)
