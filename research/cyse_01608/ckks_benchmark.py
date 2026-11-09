@@ -6,6 +6,8 @@ Never generates benchmark numbers when native CKKS support is missing.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import platform
 import csv
 import json
 import statistics
@@ -46,7 +48,7 @@ def benchmark(trials: int, clients: int, dimension: int, seed: int) -> list[dict
                     for v,w in zip(vectors, weights)]
         encrypt_ms = (time.perf_counter_ns()-start)/1e6
         start = time.perf_counter_ns()
-        aggregated = server.aggregate(payloads)
+        aggregated = server.aggregate(payloads, expected_weights=weights)
         aggregate_ms = (time.perf_counter_ns()-start)/1e6
         start = time.perf_counter_ns()
         recovered = decryptor.decrypt_weighted_mean(aggregated)
@@ -85,6 +87,26 @@ def main():
       'median_decrypt_ms':statistics.median(r['decrypt_ms'] for r in rows),
       'max_abs_error':max(r['max_abs_error'] for r in rows),
       'security_warning':'Encrypted addition only; not Byzantine filtering, metadata authenticated=False.'}
+    manifest = {
+      "kind": "native Microsoft SEAL CKKS additive aggregation correctness and overhead",
+      "status": "measurement only, no cryptographic Byzantine filtering",
+      "summary": summary,
+      "cpu": platform.processor(),
+      "platform": platform.platform(),
+      "python": platform.python_version(),
+      "numpy": np.__version__,
+      "output_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(),
+      "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+      "configuration": {
+        "trials": args.trials, "clients": args.clients, "dimension": args.dimension,
+        "seed": args.seed, "poly_modulus_degree": 8192,
+        "coeff_modulus_bits": [60, 40, 40, 60], "scale_bits": 40,
+      },
+      "limitation": "Server expected-weight metadata validation is not a proof of encrypted plaintext correctness or Byzantine update validity.",
+    }
+    (args.output.parent / "ckks_manifest.json").write_text(
+      json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(summary,indent=2))
 
 
