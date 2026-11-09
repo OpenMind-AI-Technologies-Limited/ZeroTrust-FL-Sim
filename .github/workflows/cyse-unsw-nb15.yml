@@ -17,7 +17,7 @@ jobs:
   unsw-nb15-heldout:
     name: Verified UNSW-NB15 heldout FL intrusion detection
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout exact research source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -49,15 +49,15 @@ jobs:
               meta = verify_file(root/file, EXPECTED_GIT_BLOBS[name])
               print(name, meta["sha256"], meta["size_bytes"])
           PY
-      - name: Run small but real, official-heldout privacy/Byzantine experiment
+      - name: Run 5-seed official-heldout privacy/Byzantine evaluation
         run: |
           python research/cyse_01608/unsw_experiment.py \
             --train data/unsw_nb15/UNSW_NB15_training-set.csv \
             --test data/unsw_nb15/UNSW_NB15_testing-set.csv \
             --output artifacts/cyse_01608_unsw_nb15 \
-            --seeds 0 \
+            --seeds 0 1 2 3 4 \
             --aggregators mean multi_krum \
-            --privacy-modes dp_1 \
+            --privacy-modes clip_only dp_1 \
             --attacker-compliance compliant bypass \
             --attacks sign_flip \
             --rounds 20 \
@@ -69,13 +69,13 @@ jobs:
           from pathlib import Path
           folder=Path("artifacts/cyse_01608_unsw_nb15")
           meta=json.loads((folder/"unsw_manifest.json").read_text())
-          assert meta["federated_executions"] == 8
-          assert meta["federated_rounds"] == 160
+          assert meta["federated_executions"] == 80
+          assert meta["federated_rounds"] == 1600
           assert meta["dataset_manifests"][0]["sampled_train"] == 6000
           assert meta["dataset_manifests"][0]["sampled_test"] == 3000
           with (folder/"unsw_runs.csv").open(newline="") as f: runs=list(csv.DictReader(f))
           with (folder/"unsw_paired.csv").open(newline="") as f: paired=list(csv.DictReader(f))
-          assert len(runs)==8 and len(paired)==4
+          assert len(runs)==80 and len(paired)==40
           print("Verified UNSW heldout",len(runs),"runs, ",len(paired),"matched attack pairs")
           PY
       - name: Publish reproducibility outputs only; never redistribute copyrighted dataset
