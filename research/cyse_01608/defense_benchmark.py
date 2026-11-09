@@ -29,7 +29,8 @@ ATTACKS = ("sign_flip", "alie_oracle", "targeted_label_poison")
 POLICIES = ("compliant", "bypass")
 OPTIONAL_METHODS = ("fltrust",)
 METRICS = ("macro_f1", "balanced_accuracy", "per_class_recall_json",
-           "confusion_matrix_json", "trusted_root_rows")
+           "confusion_matrix_json", "trusted_root_rows",
+           "root_label_poison_fraction")
 SUMMARY = (
     "dataset", "aggregator", "privacy_mode", "attacker_compliance",
     "threat", "observations", "mean_clean_accuracy",
@@ -50,6 +51,7 @@ def evaluate(
     partition: str = "dirichlet", alpha: float = 0.3,
     verify_sources: bool = True,
     trusted_root_fraction: float = 0.0,
+    root_label_poison_fraction: float = 0.0,
 ) -> dict:
     if dataset not in {"UNSW-NB15", "NSL-KDD", "CICIoT2023"}:
         raise ValueError("unsupported dataset")
@@ -64,6 +66,10 @@ def evaluate(
         raise ValueError("at least one training round required")
     if "fltrust" in methods and trusted_root_fraction <= 0:
         raise ValueError("FLTrust requires a positive independent trusted root fraction")
+    if not np.isfinite(root_label_poison_fraction) or not 0 <= root_label_poison_fraction <= 1:
+        raise ValueError("invalid root corruption factor")
+    if root_label_poison_fraction > 0 and trusted_root_fraction <= 0:
+        raise ValueError("root corruption requires a trusted root data allocation")
     if not 0 <= trusted_root_fraction < .5:
         raise ValueError("invalid trusted root allocation")
     if not 0 < malicious_clients < 15:
@@ -98,6 +104,7 @@ def evaluate(
                 partition=partition, alpha=alpha, attacker_compliance=policy,
                 multi_krum_k=min(5, 15-malicious_clients-2),
                 trusted_root_fraction=trusted_root_fraction,
+                root_label_poison_fraction=root_label_poison_fraction,
             )
             for threat in ("benign", *attacks):
                 records.append(run_case(
@@ -173,6 +180,8 @@ def evaluate(
         "rounds": rounds, "malicious_clients": malicious_clients,
         "partition": partition, "alpha": alpha,
         "trusted_root_fraction": trusted_root_fraction,
+        "root_label_poison_fraction": root_label_poison_fraction,
+        "root_integrity_status": "assumed clean" if root_label_poison_fraction==0 else "root label integrity deliberately breached",
         "executions": len(records), "federated_rounds": len(records)*rounds,
         "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "robust_baselines_sha256": hashlib.sha256(
@@ -212,6 +221,7 @@ def main() -> None:
     p.add_argument("--policies",nargs="+",choices=POLICIES,default=list(POLICIES))
     p.add_argument("--rounds",type=int,default=20)
     p.add_argument("--trusted-root-fraction",type=float,default=0.0)
+    p.add_argument("--root-label-poison-fraction",type=float,default=0.0)
     p.add_argument("--train-limit",type=int,default=6000)
     p.add_argument("--test-limit",type=int,default=3000)
     a=p.parse_args()
@@ -222,6 +232,7 @@ def main() -> None:
         policies=tuple(a.policies),rounds=a.rounds,
         train_limit=a.train_limit,test_limit=a.test_limit,
         trusted_root_fraction=a.trusted_root_fraction,
+        root_label_poison_fraction=a.root_label_poison_fraction,
     )
     print(json.dumps({"dataset":a.dataset,
                       "executions":manifest["executions"],
