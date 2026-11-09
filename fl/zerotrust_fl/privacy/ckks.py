@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -78,6 +79,14 @@ class EncryptedUpdate:
     original_size: int
     weight: float
 
+    def __post_init__(self) -> None:
+        if self.original_size <= 0:
+            raise ValueError("original_size must be positive")
+        if not self.chunks or any(not isinstance(chunk, bytes) or not chunk for chunk in self.chunks):
+            raise ValueError("ciphertext chunks must be nonempty bytes")
+        if not math.isfinite(self.weight) or self.weight <= 0:
+            raise ValueError("weight must be finite and positive")
+
 
 class CKKSClientEncryptor:
     """Client-side encryptor containing public material only."""
@@ -113,13 +122,37 @@ class CKKSServerAggregator:
             raise ValueError("serialized CKKS parameters are required")
         self.parameters = bytes(parameters)
 
-    def aggregate(self, updates: Iterable[EncryptedUpdate]) -> EncryptedUpdate:
+    def aggregate(
+        self,
+        updates: Iterable[EncryptedUpdate],
+        *,
+        expected_weights: Iterable[float] | None = None,
+    ) -> EncryptedUpdate:
+        """Add ciphertexts without decrypting individual client updates.
+
+        The optional expected_weights MUST come from a trusted, authenticated
+        server-side registry. Matching untrusted metadata is NOT a proof that
+        the ciphertext encodes the stated weight or a bounded plaintext update.
+        The default unverified mode is retained for backwards compatibility.
+        """
         materialized = tuple(updates)
         if not materialized:
             raise ValueError("at least one encrypted update is required")
         original_size = materialized[0].original_size
         if any(update.original_size != original_size for update in materialized):
             raise ValueError("all encrypted updates must have the same original size")
+        if expected_weights is not None:
+            trusted = tuple(float(weight) for weight in expected_weights)
+            if len(trusted) != len(materialized):
+                raise ValueError("expected_weights must match the submitted client count")
+            for update, weight in zip(materialized, trusted):
+                if not math.isfinite(weight) or weight <= 0:
+                    raise ValueError("trusted weight must be finite and positive")
+                if update.weight != weight:
+                    raise ValueError("encrypted-update weight metadata disagrees with the trusted registry")
+        total_weight = math.fsum(update.weight for update in materialized)
+        if not math.isfinite(total_weight):
+            raise ValueError("aggregate weight is not finite")
         chunks = _native.ckks_add(
             [list(update.chunks) for update in materialized],
             self.parameters,
@@ -127,7 +160,7 @@ class CKKSServerAggregator:
         return EncryptedUpdate(
             chunks=tuple(bytes(chunk) for chunk in chunks),
             original_size=original_size,
-            weight=float(sum(update.weight for update in materialized)),
+            weight=total_weight,
         )
 
 

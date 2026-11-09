@@ -11,6 +11,7 @@ from zerotrust_fl.privacy import (
     CKKSDecryptor,
     CKKSKeyMaterial,
     CKKSServerAggregator,
+    EncryptedUpdate,
     LocalDPConfig,
     RDPAccountant,
     native_ckks_available,
@@ -83,7 +84,7 @@ def test_ckks_server_aggregates_without_secret_key() -> None:
 
     first = client.encrypt(np.array([1.0, 2.0, 3.0]), weight=2.0)
     second = client.encrypt(np.array([4.0, 5.0, 6.0]), weight=1.0)
-    encrypted_mean_numerator = server.aggregate([first, second])
+    encrypted_mean_numerator = server.aggregate([first, second], expected_weights=[2.0, 1.0])
 
     assert not hasattr(server, "secret_key")
     assert encrypted_mean_numerator.weight == pytest.approx(3.0)
@@ -102,6 +103,51 @@ def test_ckks_chunks_vectors_larger_than_one_ciphertext() -> None:
     encrypted = client.encrypt(values)
     assert len(encrypted.chunks) == 2
 
-    aggregated = server.aggregate([encrypted, encrypted])
+    aggregated = server.aggregate([encrypted, encrypted], expected_weights=[1.0, 1.0])
     recovered = decryptor.decrypt_weighted_mean(aggregated)
     np.testing.assert_allclose(recovered, values, rtol=1e-5, atol=1e-5)
+
+
+
+@pytest.mark.parametrize(
+    "chunks,original_size,weight",
+    [
+        ((), 2, 1.0),
+        ((b"",), 2, 1.0),
+        ((b"cipher",), 0, 1.0),
+        ((b"cipher",), 2, 0.0),
+        ((b"cipher",), 2, float("nan")),
+        ((b"cipher",), 2, float("inf")),
+    ],
+)
+def test_ckks_rejects_invalid_encrypted_update_metadata(chunks, original_size, weight):
+    with pytest.raises(ValueError):
+        EncryptedUpdate(chunks=chunks, original_size=original_size, weight=weight)
+
+
+def test_ckks_trusted_weight_metadata_validation(monkeypatch):
+    """Pure-Python metadata checks; does not assert CKKS cryptographic security."""
+    from types import SimpleNamespace
+
+    from zerotrust_fl.privacy import ckks
+
+    fake_native = SimpleNamespace(
+        ckks_enabled=True,
+        ckks_add=lambda chunks, parameters: [b"mock-ciphertext"],
+    )
+    monkeypatch.setattr(ckks, "_native", fake_native)
+
+    server = CKKSServerAggregator(b"dummy-params")
+    first = EncryptedUpdate(chunks=(b"a",), original_size=3, weight=2.0)
+    second = EncryptedUpdate(chunks=(b"b",), original_size=3, weight=1.0)
+
+    with pytest.raises(ValueError, match="trusted registry"):
+        server.aggregate([first, second], expected_weights=[1.0, 2.0])
+    with pytest.raises(ValueError, match="client count"):
+        server.aggregate([first, second], expected_weights=[2.0])
+    with pytest.raises(ValueError, match="trusted weight"):
+        server.aggregate([first, second], expected_weights=[2.0, float("nan")])
+
+    accepted = server.aggregate([first, second], expected_weights=[2.0, 1.0])
+    assert accepted.weight == pytest.approx(3.0)
+    assert accepted.chunks == (b"mock-ciphertext",)

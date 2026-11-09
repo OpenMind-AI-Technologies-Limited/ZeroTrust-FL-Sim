@@ -1,0 +1,141 @@
+name: CYSE-01608 Attack Sensitivity and Paired Evidence Audit
+
+on:
+  push:
+    branches:
+      - research/cyse-01608-reproducibility
+    paths:
+      - "research/cyse_01608/attack_sensitivity_validation.py"
+      - "research/cyse_01608/tests/test_attack_sensitivity_validation.py"
+      - "research/cyse_01608/defense_benchmark.py"
+      - "research/cyse_01608/reproduce.py"
+      - ".github/workflows/cyse-attack-sensitivity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r research/cyse_01608/requirements.txt
+      - name: Verify independent audit refuses missing or tampered rows
+        run: |
+          python -m pytest -q research/cyse_01608/tests/test_attack_sensitivity_validation.py research/cyse_01608/tests/test_defense_benchmark.py
+
+  evaluate:
+    needs: regression
+    name: "${{ matrix.dataset.slug }} f=${{ matrix.f }} alpha=${{ matrix.alpha }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        dataset:
+          - {label: UNSW-NB15, slug: unsw}
+          - {label: NSL-KDD, slug: nsl}
+        f: [1, 3, 6]
+        alpha: ["0.3", "1.0"]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r research/cyse_01608/requirements.txt
+      - name: Fetch exact historic independent IDS train and test sources
+        shell: bash
+        env:
+          DATASET: ${{ matrix.dataset.slug }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/input
+          if [[ "$DATASET" == "unsw" ]]; then
+            base="https://raw.githubusercontent.com/Nir-J/ML-Projects/44bbd02b9e70f74dd915218d5eb702f125341ffc/UNSW-Network_Packet_Classification"
+            curl -fL --retry 3 --connect-timeout 30 -o data/input/train "$base/UNSW_NB15_training-set.csv"
+            curl -fL --retry 3 --connect-timeout 30 -o data/input/test "$base/UNSW_NB15_testing-set.csv"
+          else
+            base="https://raw.githubusercontent.com/Jehuty4949/NSL_KDD/27bbbdf5c5cccf9970b8b6037a0f19dc09c5a0a9"
+            curl -fL --retry 3 --connect-timeout 30 -o data/input/train "$base/KDDTrain%2B.txt"
+            curl -fL --retry 3 --connect-timeout 30 -o data/input/test "$base/KDDTest%2B.txt"
+          fi
+      - name: Verify source Git blob fingerprints before every experiment
+        run: |
+          python - <<'PY'
+          import sys,os
+          from pathlib import Path
+          sys.path.insert(0,"research/cyse_01608")
+          from unsw_data import verify_file as verify_unsw, EXPECTED_GIT_BLOBS as unsw_blobs
+          from nsl_data import verify_file as verify_nsl, EXPECTED_GIT_BLOBS as nsl_blobs
+          # Both wrappers reject files that differ from pinned original blobs.
+          slug="${{ matrix.dataset.slug }}"
+          verify, expected=(verify_unsw,unsw_blobs) if slug=="unsw" else (verify_nsl,nsl_blobs)
+          for name in ("train","test"):
+              info=verify(Path("data/input")/name,expected[name])
+              print(name,info["sha256"])
+          PY
+      - name: Evaluate paired ALIE statistics-oracle and sign-flip stress
+        env:
+          DATASET: ${{ matrix.dataset.label }}
+          F: ${{ matrix.f }}
+          ALPHA: ${{ matrix.alpha }}
+        run: |
+          python - <<'PY'
+          import os,sys
+          from pathlib import Path
+          sys.path.insert(0,"research/cyse_01608")
+          from defense_benchmark import evaluate
+          result=evaluate(
+              dataset=os.environ["DATASET"],
+              train=Path("data/input/train"),test=Path("data/input/test"),
+              output=Path("evidence/baselines"),
+              seeds=(0,1,2,3,4),
+              methods=("mean","multi_krum","rfa","server_clipped_rfa"),
+              privacy_modes=("clip_only","dp_1"),
+              policies=("compliant","bypass"),
+              attacks=("sign_flip","alie_oracle"),
+              rounds=20,malicious_clients=int(os.environ["F"]),
+              train_limit=6000,test_limit=3000,
+              partition="dirichlet",alpha=float(os.environ["ALPHA"]),
+              verify_sources=True,
+          )
+          assert result["executions"]==240 and result["federated_rounds"]==4800
+          print("Independent simulations",result["executions"],"FL rounds",result["federated_rounds"])
+          PY
+      - name: Validate ALL run coordinates, matched outcome metrics, integrity and inference
+        run: |
+          python research/cyse_01608/attack_sensitivity_validation.py \
+            --input-dir evidence/baselines \
+            --output-dir evidence/paired-audit --draws 4000
+          python - <<'PY'
+          import csv,hashlib,json
+          from pathlib import Path
+          p=Path("evidence/paired-audit")
+          m=json.loads((p/"audit_manifest.json").read_text())
+          assert m["baseline_executions"]==240
+          assert m["federated_rounds"]==4800
+          assert m["per_seed_effects"]==80
+          assert m["contrasts"]==26
+          assert len(list(csv.DictReader((p/"seed_effects.csv").open())))==80
+          assert len(list(csv.DictReader((p/"exploratory_contrasts.csv").open())))==26
+          for file, sha in (("seed_effects.csv","seed_effects_sha256"),
+                            ("exploratory_contrasts.csv","contrasts_sha256")):
+              assert hashlib.sha256((p/file).read_bytes()).hexdigest()==m[sha]
+          print("Evidence audit and matched grid validated, NOT proof of novel defense")
+          PY
+      - name: Archive source-checked experimental evidence, not dataset bytes
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cyse-attack-sensitivity-${{ matrix.dataset.slug }}-f${{ matrix.f }}-alpha${{ matrix.alpha }}
+          path: |
+            evidence/baselines/
+            evidence/paired-audit/
+          if-no-files-found: ignore
+          retention-days: 30

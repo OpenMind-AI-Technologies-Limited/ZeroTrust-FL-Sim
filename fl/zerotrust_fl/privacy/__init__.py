@@ -7,6 +7,7 @@ from zerotrust_fl.privacy.ckks import (
     CKKSKeyMaterial,
     CKKSPublicBundle,
     CKKSServerAggregator,
+    EncryptedUpdate,
     native_ckks_available,
 )
 from zerotrust_fl.privacy.rdp import (
@@ -23,6 +24,7 @@ __all__ = [
     "CKKSKeyMaterial",
     "CKKSPublicBundle",
     "CKKSServerAggregator",
+    "EncryptedUpdate",
     "LocalDPConfig",
     "ProtectedUpdate",
     "RDPAccountant",
