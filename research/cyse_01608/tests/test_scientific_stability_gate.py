@@ -135,6 +135,13 @@ def test_three_source_raw_gate_accepts_synthetic_fixtures(three, tmp_path):
     assert report["total_raw_executions"] == 1440
     assert len(report["source_results"]) == 3
     assert all(r["positive"] == 30 for r in report["source_results"])
+    for row in report["source_results"]:
+        for metric in ("macro_f1", "balanced_accuracy"):
+            stats = row["secondary_metric_sensitivity"][metric]
+            assert stats["descriptive_only_post_hoc"] is True
+            assert stats["positive_seed_count"] == 30
+            assert stats["negative_seed_count"] == 0
+
 
 
 def test_tampered_published_primary_p_rejected(three, tmp_path):
