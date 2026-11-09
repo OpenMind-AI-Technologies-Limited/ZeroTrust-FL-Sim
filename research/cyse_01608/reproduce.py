@@ -171,6 +171,25 @@ def alie_oracle_update(honest_updates: np.ndarray, *, factor: float = 1.5) -> np
     return honest_updates.mean(axis=0) - factor * honest_updates.std(axis=0)
 
 
+def in_ball_oracle_update(honest_updates: np.ndarray, cap: float) -> np.ndarray:
+    """Reversed mean-honest direction WITHIN cap; hypothetical oracle access.
+
+    This malicious update evades any detector based solely on an upper bound
+    on update magnitude. It is not a realistic CKKS-input verifier model.
+    """
+    updates = np.asarray(honest_updates, dtype=np.float64)
+    if (updates.ndim != 2 or updates.shape[0] < 2 or updates.shape[1] < 1
+            or not np.isfinite(updates).all() or not math.isfinite(cap) or cap <= 0):
+        raise ValueError("finite honest-update matrix and positive norm cap needed")
+    center = updates.mean(axis=0)
+    norm = float(np.linalg.norm(center))
+    if not math.isfinite(norm):
+        raise ValueError("honest oracle vector norm invalid")
+    if norm < 1e-14:
+        return np.zeros(updates.shape[1], dtype=np.float64)
+    return -0.5 * cap * center / norm
+
+
 def multi_krum_selected_clients(updates: np.ndarray, config: Config) -> np.ndarray:
     """Return accepted client indices; inclusion is NOT proof of honesty.
 
@@ -277,11 +296,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
                 # Strong honest-statistics oracle: a colluding attacker
                 # sets a directionally reversed update INSIDE the cap.
                 # This tests a known limitation of server norm gates.
-                clean_direction = honest_matrix.mean(axis=0)
-                length = float(np.linalg.norm(clean_direction))
-                alie_vector = -0.5 * config.clip_norm * (
-                    clean_direction / max(length, 1e-14)
-                )
+                alie_vector = in_ball_oracle_update(honest_matrix, config.clip_norm)
         deltas = []
         for client in range(config.clients):
             x = client_x[client]
