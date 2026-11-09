@@ -141,3 +141,30 @@ These are five-seed averages under the in-ball-oracle condition. Raw data and pe
 - Test and implementation: `research/cyse_01608/tests/test_in_ball_oracle.py`, `research/cyse_01608/reproduce.py`, `.github/workflows/cyse-inball-oracle.yml`.
 
 **Conclusion is unchanged:** the limited, pre-specified 30-seed empirical RQ is reproducible. Full Cybersecurity submission readiness for the *original privacy + Byzantine + CKKS secure aggregation paper* is NOT certified because original pre-submission provenance, deployed LDP, encrypted malicious-input validity, generalizable external validity and independent novelty review are missing. The rewritten narrow empirical paper must not claim these unsupported capabilities.
+
+
+## 12. Scientific stability hardening: raw result integrity, secondary endpoints and reproducible tolerance
+
+The frozen P1 pre-specified contrast is unchanged. A **separate, non-inferential validation gate** (`scientific_stability_gate.py`) now recomputes study results from the raw `baseline_runs.csv` and independently checks:
+
+1. Exactly three fixed source identities, seed IDs 101–130, 480 conditions per source, and disjoint 5% trusted root metadata. The first two source mirrors must have their pinned commits; the 2023 derivative must retain its sampled-source manifest and non-grouped-holdout disclosure.
+2. All 1,440 trial classification confusion matrices (2×2, 3,000 held-out labels each) algebraically reproduce accuracy, per-class recall, macro-F1 and balanced accuracy. Invalid loss/metrics and incorrect noise/clip factors fail.
+3. All 240 clean/attacked pairs per source recompute accuracy/F1/balanced-accuracy changes, exactly eight summary rows per source recompute from the 30 paired seeds, benign/no-attack runs are invariant to the nominal malicious compliance flag.
+4. All P1 per-seed Multi-Krum and FLTrust privacy-by-bypass contrasts, one-sided binomial sign-test p-values, 10,000 fixed-seed bootstrap intervals and the published three-source Holm adjustment match raw records.
+5. `P1_EVIDENCE_FREEZE.json` pins canonical scientific outputs to the independently archived source run, refusing silent changes in pair/summary/J effects, input split metadata, report conclusions or substantive loss values. The true historic author manuscript raw file provenance is NOT part of this freeze.
+
+**Numerical reproducibility edge case discovered and resolved transparently:** Two independently re-executed UNSW-NB15 runs generated identical accuracy, F1, balanced accuracy, attack pairs, summary and primary J values; however, 102 of 480 `final_loss` decimals differed in the last serialized digit (differences on the order of 1e−16). A naive whole-file checksum therefore incorrectly blocked an otherwise numerically identical experiment. The evidence gate now preserves the exact original archive digests, checks all raw-file internal hashes against each manifest, and anchors a **canonical scientific digest with `final_loss` formatted to 12 decimal places**. A substantive difference exceeding the declared precision will not match the freeze. Upstream source metadata and all report/source hashes *other than those mechanically dependent on the raw-byte loss field* are checked. It is not permissible to replace the freeze silently after changing data, methods, or protocol.
+
+### Secondary metric stability (descriptive, NOT newly preregistered significance tests)
+
+The same P1 interaction applied independently to raw macro-F1 and balanced accuracy:
+
+| Fixed source | Macro-F1 mean J (pp) | Positive seeds | Balanced accuracy mean J (pp) | Positive seeds |
+| --- | ---: | ---: | ---: | ---: |
+| UNSW-NB15 | +35.999 | 30/30 | +36.118 | 30/30 |
+| NSL-KDD | +48.018 | 30/30 | +49.208 | 30/30 |
+| CICIoT2023 derivative | +54.299 | 30/30 | +54.441 | 30/30 |
+
+These **post-hoc descriptive triangulations** reduce concern that the primary pattern is merely an overall-accuracy metric artifact. They do not supply a new inferential test family, solve correlated sampling, or validate the original unimplemented CKKS Byzantine security claims.
+
+**Scientific status:** The conditional, fixed-source numerical P1 study has strong reproducibility and fail-closed audit controls. It is not an unconditional original algorithm, an authenticated historical manuscript reproduction, a deployed LDP system or a fully proven private Byzantine-resistant CKKS protocol. No journal-level originality or submission decision is claimed.
