@@ -7,6 +7,7 @@ on:
       - "research/cyse_01608/CONFIRMATORY_PROTOCOL.md"
       - "research/cyse_01608/confirmatory_analysis.py"
       - "research/cyse_01608/scientific_stability_gate.py"
+      - "research/cyse_01608/P1_EVIDENCE_FREEZE.json"
       - "research/cyse_01608/tests/test_scientific_stability_gate.py"
       - "research/cyse_01608/tests/test_confirmatory_analysis.py"
       - ".github/workflows/cyse-confirmatory-p1.yml"
@@ -139,7 +140,9 @@ jobs:
             --unsw evidence/source_jobs/cyse-confirmatory-unsw \
             --nsl evidence/source_jobs/cyse-confirmatory-nsl \
             --ciciot evidence/source_jobs/cyse-confirmatory-ciciot \
-            --output evidence/combined
+            --output evidence/combined \
+            --freeze-file research/cyse_01608/P1_EVIDENCE_FREEZE.json \
+            --published-holm evidence/combined/holm_three_source_confirmatory.json
       - name: Archive complete three-source hypothesis decision
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
