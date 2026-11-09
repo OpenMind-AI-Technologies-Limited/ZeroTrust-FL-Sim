@@ -5,6 +5,7 @@ on:
     branches: [research/cyse-01608-reproducibility]
     paths:
       - "research/cyse_01608/reproduce.py"
+      - "research/cyse_01608/robust_baselines.py"
       - "research/cyse_01608/defense_benchmark.py"
       - "research/cyse_01608/root_integrity_compare.py"
       - "research/cyse_01608/tests/test_root_integrity_sensitivity.py"
