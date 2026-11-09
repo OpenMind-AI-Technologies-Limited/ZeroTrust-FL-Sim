@@ -231,7 +231,9 @@ def _edit_loss_and_relink_source_hashes(root, replacement):
     manifest = data/"baseline_manifest.json"
     reported = root/"evidence"/"primary_analysis"/"source_result.json"
     rows = list(csv.DictReader(runs.open()))
-    rows[0]["final_loss"] = replacement
+    # Modify an attacked run so benign policy invariance cannot mask the
+    # independent frozen-data scientific-drift assertion.
+    next(row for row in rows if row["threat"] == "sign_flip")["final_loss"] = replacement
     write_csv(runs, rows)
     m = json.loads(manifest.read_text())
     m["raw_csv_sha256"] = digest(runs)
