@@ -43,3 +43,12 @@ These prior GitHub run artifacts have a finite retention period. To reproduce af
 - One attack family, one linear model, two historical datasets, five seeds, no independent modern intrusion corpus, no controlled client dropouts, and no relevant recent privacy-compatible Byzantine baselines.
 - Current implementation has no enforced proof that a Byzantine client clipped/noised its encrypted update; native CKKS only performs additive averaging. Thus **joint confidential Byzantine-robust aggregation is NOT demonstrated**.
 - A novel algorithm, formal security bound or independently validated novel measurement must be articulated and compared with published work. More replications alone do not establish novelty.
+
+
+## Source-independent re-execution verified
+
+A strengthened, self-contained workflow now downloads the four source data files directly from pinned Git commits, verifies their Git blob hashes, executes both five-seed benchmarks from scratch, checks the resulting per-run source manifests and recomputes the cross-study contrasts **without downloading any earlier GitHub Actions artifacts**. It passed in [run 42583791876](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42583791876).
+
+Total re-execution: **160 independent simulator conditions / 3,200 federated rounds** across exactly two datasets. The UNSW and NSL paired CSVs were **byte-for-byte identical** to the previous independently archived paired outputs. Full NSL run CSV also matched byte-for-byte. Full UNSW run CSV had only last-decimal floating-point variation in reported loss values (~1e-15), while comparison metrics and matched attack effects remained unchanged. This establishes numerical/statistical reproducibility at the tested environment, not bitwise determinism across arbitrary architectures.
+
+The workflow archives the newly generated study CSVs, per-source manifests, cross-seed effects and cross-summary, without distributing third-party source datasets. Source hashes, model details, limitations and scripts remain committed to this branch. Avoid claiming scientific novelty solely from exact repeatability.

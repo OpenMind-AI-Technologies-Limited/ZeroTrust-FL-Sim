@@ -109,3 +109,8 @@ These newer studies must not be represented as the submitted manuscript's origin
 - [Successful cross-dataset verification workflow](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42582952345): checks the independent source-run data integrity and matched interaction analysis
 
 These are conditional measurements on old benchmarks. Neither statistically established state-of-the-art security nor a novel encrypted Byzantine defense is demonstrated.
+
+
+### Re-run BOTH cybersecurity datasets without expiring artifact dependencies
+
+The [self-contained UNSW-NB15 + NSL-KDD GitHub workflow](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42583791876) downloads four pinned dataset source files, validates original file hashes, executes both five-seed experiments, and recomputes the paired cross-dataset contrast. It does **not** require any retained previous Actions results. All generated output CSVs and manifests are archived, but third-party datasets are never redistributed.
