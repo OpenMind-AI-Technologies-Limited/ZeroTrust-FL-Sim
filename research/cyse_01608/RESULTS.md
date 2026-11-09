@@ -107,3 +107,10 @@ See SECURITY_MODEL.md for formal assumptions and claims that must **not** appear
 - UNSW_NB15_EVIDENCE.md records the actual 80-run five-seed, sampled held-out cyber intrusion benchmark, model metrics, input checksums, paired effects and limits. The privacy-by-method interaction J was +32.41 percentage points, but Holm-adjusted p=0.5625 across 9 contrasts, so it is NOT a statistically confirmed finding.
 - CKKS_BENCHMARK_RESULTS.md records 3 actual SEAL trials with 15 clients and 4096 coordinates, ~647ms sequential encryption, ~41.87ms addition and ~41.86ms decryption, ciphertext ~5.9 MB and maximum numerical error 1.67e-9. CKKS encrypted Byzantine filtering remains unimplemented.
 - RESEARCH_GAP_RQS.md lists prior DP/Byzantine/cryptographic work and the evidence-supported RQ1–RQ4 boundaries. There is not yet a verified novel defense or a journal-ready research contribution.
+
+
+## Second independently measured cybersecurity dataset and paired cross-study evidence
+
+- [NSL-KDD historical publisher-split study](NSL_KDD_EVIDENCE.md): [source-verified GitHub Actions run 42582573246](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42582573246), five seeds, 80 runs, 1,600 rounds. The data are old and downloaded from a pinned non-authoritative public mirror because the original publisher no longer hosts them.
+- [Two-source interaction comparison](CROSS_DATASET_RESULTS.md): [GitHub Actions run 42582952345](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42582952345) produced 30 per-seed-by-endpoint records and 9 summary contrasts. The privacy-by-bypass-by-aggregator interaction was +32.41 pp for UNSW-NB15 and +42.85 pp for NSL-KDD, equal-source descriptive mean +37.63 pp (seed-only interval 32.94–42.00 pp).
+- These outcomes are **exploratory**, with only 2 historical sources, 5 seeds each, one classifier family, and one sign-flip attack. No pooled population p-value, new defense, cryptographic Byzantine filtering or true operational local DP is demonstrated. Original submitted raw files remain unrecovered.

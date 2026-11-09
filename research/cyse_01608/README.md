@@ -89,7 +89,7 @@ Example (replace all column names and path with those of the real dataset):
 python research/cyse_01608/cyber_experiment.py --csv /path/to/intrusion_flows.csv --label attack_label --group device_id --exclude flow_id source_ip destination_ip timestamp --output artifacts/cyse_01608_intrusion --partition dirichlet --alpha 0.3 --seeds 0 1 2 3 4 --rounds 20
 ~~~
 
-The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with dataset SHA-256, splits, feature names and source checksum. The generic cybersecurity CSV adapter tests use synthetic fixtures, but a separate actual UNSW-NB15 heldout evaluation has now been completed (UNSW_NB15_EVIDENCE.md); all adapter tests use clearly labeled synthetic fixtures. Class imbalance (macro-F1), targeted/backdoor attack success, external validity and independent data-source verification are still required for journal-level conclusions. The original 720-condition Breast Cancer/Digits evidence remains unchanged and separate.
+The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with dataset SHA-256, splits, feature names and source checksum. The generic CSV adapter's unit tests use synthetic fixtures. Separate real-source UNSW-NB15 and legacy NSL-KDD heldout studies have now been independently executed and verified (see links below). These supplementary results do not replace the original 720-run dataset. Class imbalance (macro-F1), targeted/backdoor attack success, external validity and independent data-source verification are still required for journal-level conclusions. The original 720-condition Breast Cancer/Digits evidence remains unchanged and separate.
 
 
 ## Newly measured cybersecurity and CKKS results
@@ -100,3 +100,12 @@ The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with
 - [Original additional files and DOI audit](DATA_AVAILABILITY_AUDIT.md)
 
 These newer studies must not be represented as the submitted manuscript's original 720 runs or proof of a newly invented encrypted Byzantine defense.
+
+
+## Independent second cybersecurity benchmark and cross-dataset comparison
+
+- [NSL-KDD five-seed historical heldout evidence](NSL_KDD_EVIDENCE.md): 80 actual runs, 1,600 rounds; pinned mirror and published train/test split
+- [Cross-dataset exploratory mechanism interaction](CROSS_DATASET_RESULTS.md): 160 runs across two distinct historical benchmark sources; source/output checksums and per-seed effect measurements
+- [Successful cross-dataset verification workflow](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42582952345): checks the independent source-run data integrity and matched interaction analysis
+
+These are conditional measurements on old benchmarks. Neither statistically established state-of-the-art security nor a novel encrypted Byzantine defense is demonstrated.

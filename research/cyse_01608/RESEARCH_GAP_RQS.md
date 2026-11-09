@@ -24,8 +24,11 @@ Let n clients include a Byzantine subset B of size f. Honest clients produce cli
 ## Evidence and remaining originality gap
 - RQ1: independent reference reproduction and compromised-client stress data. Original manuscript outputs remain unverified.
 - RQ2: Multi-Krum malicious-admission study, conditional exploratory effects, limited to two small tasks/5 seeds and basic attack configurations.
-- RQ3: sampled real UNSW-NB15 five-seed 80-run experiment. Primary method interaction +32.41 pp; Holm-adjusted p=0.5625. No statistically confirmed effect after correction.
+- RQ3: both sampled historical network intrusion datasets (UNSW-NB15 and NSL-KDD) have been evaluated: five seeds / 80 runs per source. Exploratory privacy-by-bypass-by-aggregator interactions are +32.41 pp (UNSW), +42.85 pp (NSL) and +37.63 pp (equal-source mean). A bootstrap interval over 2 fixed sources and study seeds is NOT a population CI; initial UNSW Holm-adjusted p=0.5625 for its nine contrasts. No confirmatory novelty or universal security conclusion is established.
 - RQ4: native CKKS addition shows correctness, timing and ciphertext overhead; cryptographically verifiable encrypted Byzantine filtering is NOT implemented.
 - Original 720-run raw data: Zenodo 10.5281/zenodo.22711022 is a software ZIP, not independently verified Additional Files 1-3.
 
-Before journal submission, independently recover original submitted CSVs or transparently replace manuscript tables with newly generated evidence; test at least another independent cybersecurity dataset and stronger adaptive/targeted attacks, compare to contemporary privacy-compatible Byzantine baselines, establish a genuinely new finding or algorithm with a testable formal hypothesis and sufficient statistical power, and keep all encryption/DP claims aligned with actual implemented guarantees.
+Before journal submission, independently recover original submitted CSVs or transparently replace manuscript tables with newly generated evidence; test a modern third independent intrusion dataset and stronger adaptive/targeted attacks, compare to contemporary privacy-compatible Byzantine baselines, establish a genuinely new finding or algorithm with a testable formal hypothesis and sufficient statistical power, and keep all encryption/DP claims aligned with actual implemented guarantees.
+
+
+Subsequent evidence: [NSL-KDD external replication](NSL_KDD_EVIDENCE.md), [two-source mechanism contrast](CROSS_DATASET_RESULTS.md). A robust, original research article still requires modern independent datasets, stronger adaptive threats, relevant state-of-the-art privacy-compatible Byzantine baselines, formal new security method or pre-specified novel insight, and original submitted-data reconciliation.
