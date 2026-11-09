@@ -65,7 +65,7 @@ def test_modern_tamper_is_rejected(tmp_path):
 def test_modern_cross_split_duplicate_detection(tmp_path):
     a=synthetic_source(500,7)
     b=a.copy(deep=True)
-    with pytest.raises(ValueError,match="duplicate flow-vector leakage"):
+    with pytest.raises(ValueError,match="insufficient independent unique feature vectors"):
         snapshot(a,b,tmp_path,revision_sha="ae15e93-fixture",
-                 train_rows=200,validation_rows=100,
+                 train_rows=400,validation_rows=200,
                  sample_seed=2023)
