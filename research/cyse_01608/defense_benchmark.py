@@ -25,7 +25,7 @@ METHODS = ("mean", "multi_krum", "rfa",
            "server_clipped_mean", "server_clipped_rfa",
            "server_clipped_multi_krum")
 PRIVACY = ("clip_only", "dp_1")
-ATTACKS = ("sign_flip", "alie_oracle", "targeted_label_poison")
+ATTACKS = ("sign_flip", "alie_oracle", "targeted_label_poison", "in_ball_oracle")
 POLICIES = ("compliant", "bypass")
 OPTIONAL_METHODS = ("fltrust",)
 METRICS = ("macro_f1", "balanced_accuracy", "per_class_recall_json",
