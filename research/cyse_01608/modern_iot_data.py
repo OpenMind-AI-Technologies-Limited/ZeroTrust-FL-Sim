@@ -45,6 +45,7 @@ def _balanced_sample(df: pd.DataFrame, feature_cols: list[str],
         raise ValueError("both binary source classes required")
     # Sample extra unique candidates to avoid underfilling from identical flows.
     selected = []
+    seen = set(exclude_hashes or ())
     for cls in (0, 1):
         members = df[df["label"] == cls]
         if len(members) < samples // 2:
@@ -53,14 +54,15 @@ def _balanced_sample(df: pd.DataFrame, feature_cols: list[str],
         candidates = members.sample(n=budget, replace=False,
                                     random_state=seed + int(cls)*9973)
         candidates = candidates.drop_duplicates(subset=feature_cols)
-        if exclude_hashes:
-            fingerprints = pd.util.hash_pandas_object(
-                candidates[feature_cols], index=False
-            ).astype("uint64")
-            candidates = candidates.loc[~fingerprints.isin(exclude_hashes)]
+        fingerprints = pd.util.hash_pandas_object(
+            candidates[feature_cols], index=False
+        ).astype("uint64")
+        candidates = candidates.loc[~fingerprints.isin(seen)]
         if len(candidates) < samples // 2:
             raise ValueError("insufficient independent unique feature vectors")
-        selected.append(candidates.iloc[:samples//2])
+        selected_rows = candidates.iloc[:samples//2]
+        seen.update(_row_hashes(selected_rows, feature_cols))
+        selected.append(selected_rows)
     return pd.concat(selected, ignore_index=True)
 
 
