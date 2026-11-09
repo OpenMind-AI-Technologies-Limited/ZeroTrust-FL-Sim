@@ -143,7 +143,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--test", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=Path("artifacts/cyse_01608_nsl_nb15"))
+    parser.add_argument("--output", type=Path, default=Path("artifacts/cyse_01608_nsl_kdd"))
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1])
     parser.add_argument("--aggregators", nargs="+", choices=RULES, default=["mean", "median", "multi_krum"])
     parser.add_argument("--privacy-modes", nargs="+", choices=MODES, default=["clip_only", "dp_1"])
