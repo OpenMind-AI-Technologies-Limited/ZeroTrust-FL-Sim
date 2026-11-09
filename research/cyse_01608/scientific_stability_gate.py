@@ -219,6 +219,35 @@ def inspect_source(parent: Path, source: str) -> dict:
     rng = np.random.default_rng(16082026)
     resamples = values[rng.integers(0, 30, size=(10000, 30))].mean(axis=1)
     lo, hi = np.quantile(resamples, [.025, .975])
+    # Post-hoc robustness triangulation: two secondary classification metrics.
+    # These are descriptive checks and do not add inferential hypotheses to P1.
+    secondary = {}
+    for metric in ("macro_f1", "balanced_accuracy"):
+        values_secondary = []
+        for seed in SEEDS:
+            def interaction(method, mode):
+                def loss(policy):
+                    benign = indexed[(seed, method, mode, policy, "benign")]
+                    attacked = indexed[(seed, method, mode, policy, "sign_flip")]
+                    return 100 * (float(benign[metric]) - float(attacked[metric]))
+                return loss("bypass") - loss("compliant")
+            effect = (
+                interaction("multi_krum", "dp_1") -
+                interaction("multi_krum", "clip_only") -
+                interaction("fltrust", "dp_1") +
+                interaction("fltrust", "clip_only")
+            )
+            values_secondary.append(effect)
+        arr = np.asarray(values_secondary, dtype=float)
+        secondary[metric] = {
+            "descriptive_only_post_hoc": True,
+            "mean_interaction_pp": float(arr.mean()),
+            "min_interaction_pp": float(arr.min()),
+            "max_interaction_pp": float(arr.max()),
+            "positive_seed_count": int((arr > 0).sum()),
+            "negative_seed_count": int((arr < 0).sum()),
+            "zero_seed_count": int((arr == 0).sum()),
+        }
     published = json.loads(published_path.read_text(encoding="utf-8"))
     exact = {
         "mean_J_pp": values.mean(),
@@ -251,6 +280,7 @@ def inspect_source(parent: Path, source: str) -> dict:
         "summary_sha256": sha(summary_path),
         "seed_J_sha256": sha(j_path), "result_sha256": sha(published_path),
         "manifest_sha256": sha(manifest_path),
+        "secondary_metric_sensitivity": secondary,
     }
 
 
