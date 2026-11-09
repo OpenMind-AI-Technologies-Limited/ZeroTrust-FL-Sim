@@ -29,7 +29,7 @@ ORDERS = (1.25, 1.5, 1.75, 2., 3., 4., 5., 8., 10., 16., 32., 64.)
 AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
 PRIVACY_MODES = ("none", "clip_only", "dp_0.5", "dp_1", "dp_2", "dp_4")
 THREATS = ("benign", "sign_flip", "label_flip")
-EXTENSION_THREATS = THREATS + ("alie_oracle", "targeted_label_poison")
+EXTENSION_THREATS = THREATS + ("alie_oracle", "targeted_label_poison", "in_ball_oracle")
 DATASETS = ("breast_cancer", "digits")
 FIELDS = ("dataset", "seed", "partition", "alpha", "aggregator", "privacy_mode",
           "threat", "attacker_compliance", "rounds", "n_clients", "malicious_clients",
@@ -256,7 +256,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
     selection_counts = []
     for round_id in range(config.rounds):
         alie_vector = None
-        if threat == "alie_oracle" and malicious:
+        if threat in ("alie_oracle", "in_ball_oracle") and malicious:
             # This branch is independent of the original 720-run matrix.
             # Oracle sees honest PRE-privacy vectors, a worst-case attacker.
             honest_unprotected = []
@@ -270,7 +270,18 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
                 grad = x.T @ diff / len(y)
                 grad[:-1] += config.l2 * weights[:-1]
                 honest_unprotected.append(-config.learning_rate * grad.reshape(-1))
-            alie_vector = alie_oracle_update(np.stack(honest_unprotected))
+            honest_matrix = np.stack(honest_unprotected)
+            if threat == "alie_oracle":
+                alie_vector = alie_oracle_update(honest_matrix)
+            else:
+                # Strong honest-statistics oracle: a colluding attacker
+                # sets a directionally reversed update INSIDE the cap.
+                # This tests a known limitation of server norm gates.
+                clean_direction = honest_matrix.mean(axis=0)
+                length = float(np.linalg.norm(clean_direction))
+                alie_vector = -0.5 * config.clip_norm * (
+                    clean_direction / max(length, 1e-14)
+                )
         deltas = []
         for client in range(config.clients):
             x = client_x[client]
@@ -289,7 +300,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             delta = -config.learning_rate * grad.reshape(-1)
             if threat == "sign_flip" and client in malicious:
                 delta = -config.sign_scale * delta
-            if threat == "alie_oracle" and client in malicious:
+            if threat in ("alie_oracle", "in_ball_oracle") and client in malicious:
                 delta = alie_vector.copy()
             bypass = (config.attacker_compliance == "bypass" and
                       threat != "benign" and client in malicious)
