@@ -18,6 +18,7 @@ import numpy as np
 from reproduce import FIELDS, Config, paired_results, run_case
 from robust_baselines import EXTENSION_AGGREGATORS
 from nsl_data import prepare_nsl
+from modern_iot_data import prepare_ciciot
 from unsw_data import prepare_unsw
 
 METHODS = ("mean", "multi_krum", "rfa",
@@ -50,7 +51,7 @@ def evaluate(
     verify_sources: bool = True,
     trusted_root_fraction: float = 0.0,
 ) -> dict:
-    if dataset not in {"UNSW-NB15", "NSL-KDD"}:
+    if dataset not in {"UNSW-NB15", "NSL-KDD", "CICIoT2023"}:
         raise ValueError("unsupported dataset")
     if not all((seeds, methods, privacy_modes, policies, attacks)):
         raise ValueError("empty experiment selection")
@@ -68,18 +69,22 @@ def evaluate(
     if not 0 < malicious_clients < 15:
         raise ValueError("invalid malicious client population")
 
-    loader = prepare_unsw if dataset == "UNSW-NB15" else prepare_nsl
+    loader = {"UNSW-NB15": prepare_unsw, "NSL-KDD": prepare_nsl,
+              "CICIoT2023": prepare_ciciot}[dataset]
     output.mkdir(parents=True, exist_ok=True)
     records = []
     manifest_splits = []
     for seed in seeds:
-        opts = {} if verify_sources else (
-            {"expected_train_blob": None, "expected_test_blob": None,
-             "require_official_row_counts": False}
-            if dataset == "UNSW-NB15" else
-            {"expected_train_blob": None, "expected_test_blob": None,
-             "require_standard_counts": False}
-        )
+        if dataset == "CICIoT2023":
+            opts = {"require_manifest": verify_sources}
+        else:
+            opts = {} if verify_sources else (
+                {"expected_train_blob": None, "expected_test_blob": None,
+                 "require_official_row_counts": False}
+                if dataset == "UNSW-NB15" else
+                {"expected_train_blob": None, "expected_test_blob": None,
+                 "require_standard_counts": False}
+            )
         task, info = loader(
             train, test, seed=seed, train_limit=train_limit,
             test_limit=test_limit, **opts
@@ -194,7 +199,7 @@ def evaluate(
 
 def main() -> None:
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--dataset", choices=("UNSW-NB15","NSL-KDD"),required=True)
+    p.add_argument("--dataset", choices=("UNSW-NB15","NSL-KDD","CICIoT2023"),required=True)
     p.add_argument("--train",type=Path,required=True)
     p.add_argument("--test",type=Path,required=True)
     p.add_argument("--output",type=Path,required=True)
