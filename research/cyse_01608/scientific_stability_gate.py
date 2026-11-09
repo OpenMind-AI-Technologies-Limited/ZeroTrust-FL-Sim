@@ -27,6 +27,13 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def canonical_sha(value) -> str:
+    """SHA-256 for stable scientific JSON with canonical key/order encoding."""
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def records(path: Path) -> list[dict]:
     with path.open(newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
@@ -280,6 +287,21 @@ def inspect_source(parent: Path, source: str) -> dict:
         "summary_sha256": sha(summary_path),
         "seed_J_sha256": sha(j_path), "result_sha256": sha(published_path),
         "manifest_sha256": sha(manifest_path),
+        # Only the 12th decimal of final cross-entropy may vary under
+        # equivalent CPU floating-point reductions. Never canonicalize
+        # accuracy/F1/recall, classification outcomes or paired J.
+        "semantic_run_sha256": canonical_sha([
+            dict(row, final_loss=format(float(row["final_loss"]), ".12f"))
+            for row in raw
+        ]),
+        "semantic_manifest_sha256": canonical_sha({
+            k: v for k, v in manifest.items() if k != "raw_csv_sha256"
+        }),
+        "semantic_result_sha256": canonical_sha({
+            k: v for k, v in published.items()
+            if k not in ("original_experiment_runs_sha256",
+                         "original_experiment_manifest_sha256")
+        }),
         "secondary_metric_sensitivity": secondary,
     }
 
@@ -304,13 +326,14 @@ def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path,
     if frozen_path is not None:
         freeze = json.loads(frozen_path.read_text(encoding="utf-8"))
         if (freeze.get("protocol_id") != "CYSE-01608-P1-root-trust-vs-distance-selection"
-                or freeze.get("freeze_id") != "P1-2026-11-09-raw-evidence-v1"
+                or freeze.get("freeze_id") != "P1-2026-11-09-semantic-evidence-v2"
                 or set(freeze.get("sha256_by_source", {})) != set(SOURCES)):
             raise ValueError("unknown or incomplete frozen P1 experiment identity")
         for record in evidence:
             for field, expected_hash in freeze["sha256_by_source"][record["dataset"]].items():
-                if (field not in ("run_sha256", "pair_sha256", "summary_sha256",
-                                  "manifest_sha256", "seed_J_sha256", "result_sha256")
+                if (field not in ("semantic_run_sha256", "pair_sha256", "summary_sha256",
+                                  "semantic_manifest_sha256", "seed_J_sha256",
+                                  "semantic_result_sha256")
                         or record[field] != expected_hash):
                     raise ValueError(record["dataset"] + ": P1 frozen evidence drift: " + field)
     if published_holm is not None:
