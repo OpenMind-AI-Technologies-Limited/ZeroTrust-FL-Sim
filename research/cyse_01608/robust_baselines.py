@@ -12,6 +12,7 @@ import math
 import numpy as np
 
 EXTENSION_AGGREGATORS = (
+    "fltrust",
     "rfa",
     "server_clipped_mean",
     "server_clipped_rfa",
@@ -120,6 +121,38 @@ def fltrust_aggregate(updates: np.ndarray, trusted_update: np.ndarray) -> np.nda
         # Fail closed: no client direction agrees with the clean root.
         return np.zeros_like(root)
     return root_norm * ((unit.T @ trust) / total)
+
+
+def fltrust_aggregate(updates: np.ndarray, trusted_reference: np.ndarray) -> np.ndarray:
+    """Published FLTrust-style cosine trust bootstrap (Cao et al., NDSS 2021).
+
+    REQUIRES a server-held disjoint, clean root dataset. The protocol does
+    not verify the root's honesty and is not encrypted secure aggregation.
+    Untrusted vectors are norm-matched to the trusted reference, then
+    weighted by their positive cosine similarity.
+    """
+    data = _validate(updates)
+    reference = np.asarray(trusted_reference, dtype=np.float64)
+    if reference.shape != (data.shape[1],) or not np.isfinite(reference).all():
+        raise ValueError("a finite server root update of matching shape is required")
+    ref_norm = float(np.linalg.norm(reference))
+    if not np.isfinite(ref_norm) or ref_norm < 1e-14:
+        raise ValueError("server reference gradient is zero or invalid")
+    lengths = np.linalg.norm(data, axis=1)
+    if not np.isfinite(lengths).all():
+        raise ValueError("invalid update vector norms")
+    valid = lengths > 1e-14
+    cosine = np.zeros(len(data), dtype=np.float64)
+    cosine[valid] = (data[valid] / lengths[valid]) @ (reference / ref_norm)
+    scores = np.maximum(cosine, 0.)
+    if not np.any(scores > 0):
+        return np.zeros(data.shape[1], dtype=np.float64)
+    directions = np.zeros_like(data)
+    directions[valid] = data[valid] / lengths[valid, None]
+    result = ref_norm * np.average(directions, axis=0, weights=scores)
+    if not np.isfinite(result).all():
+        raise ValueError("invalid FLTrust aggregate")
+    return result
 
 
 def aggregate_extended(
