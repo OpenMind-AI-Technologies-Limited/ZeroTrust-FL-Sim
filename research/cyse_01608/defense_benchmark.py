@@ -25,7 +25,7 @@ METHODS = ("mean", "multi_krum", "rfa",
            "server_clipped_mean", "server_clipped_rfa",
            "server_clipped_multi_krum")
 PRIVACY = ("clip_only", "dp_1")
-ATTACKS = ("sign_flip", "alie_oracle")
+ATTACKS = ("sign_flip", "alie_oracle", "targeted_label_poison")
 POLICIES = ("compliant", "bypass")
 OPTIONAL_METHODS = ("fltrust",)
 METRICS = ("macro_f1", "balanced_accuracy", "per_class_recall_json",
@@ -168,6 +168,8 @@ def evaluate(
         "dataset_split_manifests": manifest_splits,
         "seeds": seeds, "methods": methods, "privacy": privacy_modes,
         "policies": policies, "attacks": attacks,
+        "targeted_label_poison_target_class": 0,
+        "targeted_label_poison_is_not_trigger_backdoor": True,
         "rounds": rounds, "malicious_clients": malicious_clients,
         "partition": partition, "alpha": alpha,
         "trusted_root_fraction": trusted_root_fraction,
