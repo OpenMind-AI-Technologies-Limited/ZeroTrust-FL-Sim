@@ -85,3 +85,23 @@ def test_known_reference_grid_unchanged_by_adding_optional_baselines():
     base = run_case("breast_cancer", 0, "multi_krum", "dp_1", "sign_flip", cfg)
     assert set(base) == set(FIELDS)
     np.testing.assert_allclose(aggregate(np.zeros((15, 3)), "multi_krum", cfg), 0)
+
+
+
+def test_server_bounded_mean_adversarial_influence_lemma():
+    """With f replaced clients, projected mean differs by at most 2*f*C/n."""
+    n, f, cap = 15, 3, .1
+    honest = np.zeros((n-f, 4))
+    adversary_one = np.zeros((f, 4))
+    adversary_two = np.zeros((f, 4))
+    adversary_one[:, 0] = 1e8
+    adversary_two[:, 0] = -1e8
+    first = aggregate_extended(
+        np.concatenate([honest, adversary_one]), "server_clipped_mean", cap=cap
+    )
+    second = aggregate_extended(
+        np.concatenate([honest, adversary_two]), "server_clipped_mean", cap=cap
+    )
+    observed = np.linalg.norm(first-second)
+    assert observed <= 2.*f*cap/n + 1e-12
+    assert observed == pytest.approx(2.*f*cap/n, abs=1e-12)
