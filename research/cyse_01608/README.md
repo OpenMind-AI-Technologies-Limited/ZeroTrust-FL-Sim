@@ -114,3 +114,13 @@ These are conditional measurements on old benchmarks. Neither statistically esta
 ### Re-run BOTH cybersecurity datasets without expiring artifact dependencies
 
 The [self-contained UNSW-NB15 + NSL-KDD GitHub workflow](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42583791876) downloads four pinned dataset source files, validates original file hashes, executes both five-seed experiments, and recomputes the paired cross-dataset contrast. It does **not** require any retained previous Actions results. All generated output CSVs and manifests are archived, but third-party datasets are never redistributed.
+
+
+## RFA and server-enforced plaintext update-bound extensions (2026-11)
+
+- Implemented unweighted RFA-style smoothed Weiszfeld geometric median and plaintext **server-enforced** norm projection with Mean, RFA and Multi-Krum. These are established methods, NOT newly invented algorithms.
+- [Research evidence and real-source metrics](ROBUST_BASELINES_EVIDENCE.md): 480 additional executions / 9,600 rounds from historical UNSW-NB15 and NSL-KDD under sign-flip attacks across five seeds, two privacy conditions and compliant/bypass clients.
+- [Successful dedicated baseline CI](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42587967166) validates numerical behavior and publishes source-hashed runs, paired effects and class-imbalance metrics; raw dataset bytes are not redistributed.
+- [Original experimental-data audit gate](ORIGINAL_DATA_GATE.md): checks a *supplied genuine author-run CSV* for exactly 720 factors and manifest consistency, intentionally fails if original materials are missing; **does not authenticate historical claims**.
+
+**Scientific limitation:** post-noise norm clipping alone did not prevent the observed DP sigma=1 + malicious bypass collapse. The server gate requires access to noisy plaintext and is not encrypted CKKS Byzantine filtering. RFA, projection and the magnitude-sensitivity lemma are prior art/elementary bounds, not an independently established novel contribution.

@@ -119,3 +119,11 @@ See SECURITY_MODEL.md for formal assumptions and claims that must **not** appear
 ### Independent re-execution of both external benchmarks
 
 [Run 42583791876](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42583791876) passed end-to-end: pinned dataset download and verification, **160 real-data simulation runs / 3,200 FL rounds**, paired comparison, checksum provenance, and archived outputs. Both paired experiment CSV files matched earlier verified source-runs byte-for-byte; harmless last-decimal floating-point differences occurred in some unsw_runs.csv loss values only. This is *experimental reproducibility*, not evidence that a new defense exists or that the original submitted 720 runs have been recovered.
+
+
+## RFA and server-enforced plaintext update-bound extensions (2026-11)
+
+- [Baseline method and source details](ROBUST_BASELINES_EVIDENCE.md): additional 480 real historical intrusion-detection conditions (240 UNSW-NB15 + 240 NSL-KDD; 9,600 rounds) comparing known Mean, Multi-Krum and RFA-style geometric median to three plaintext server-gated variants.
+- The fixed-server-cap projected mean admits an elementary per-round L2 replacement bound of 2fC/n (0.04 for f=3, n=15, C=0.1). This **does not bound accuracy or prove security of Krum or CKKS**.
+- Sign-flip bypass heldout accuracy with DP sigma=1 remained roughly 25–28% in these two experimental datasets across RFA and the norm-gated alternatives, despite clipping; reported negative result, not a proven successful defense.
+- [Original-run structural/provenance gate](ORIGINAL_DATA_GATE.md) is implemented and tested with **synthetic** fixtures. Historical original 720-run CSVs remain absent and unverified.

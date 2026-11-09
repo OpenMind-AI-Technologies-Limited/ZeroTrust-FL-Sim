@@ -61,3 +61,10 @@ No paper should claim confidential and Byzantine-robust aggregation jointly unti
 6. Keep all CI/security checks green and release a reproducible artifact with original data rights, source hashes and independent instructions.
 
 **Status:** research instrumented; *not submission-ready* and no journal acceptance/novelty guarantee.
+
+
+## RFA and server-enforced plaintext update-bound extensions (2026-11)
+
+Server-side norm clipping of plaintext client updates enforces a vector magnitude cap C even when clients bypass honest clipping instructions. For Mean, replacement of f attacker submissions while all n-f other submissions stay fixed yields a per-round L2 aggregate difference no larger than 2fC/n. This follows from triangle inequality and says nothing about class accuracy, rounds, Krum's data-dependent selection or authenticity of clients. It is an elementary consequence of projection, **not original cryptographic theory**.
+
+The RFA-style geometric-median benchmark uses a known smoothed Weiszfeld estimator; even exact geometric medians can lose utility in high-dimensional noisy heterogeneous FL. The gate sees plaintext/noisy plaintext. Neither approach verifies that a client generated the asserted Gaussian noise, nor applies on opaque CKKS ciphertext. Under operational local DP, a server-side deterministic postprocessing step does not worsen the release's privacy parameters *given honest private randomness*, but the deterministic study noise here is not such a guarantee.

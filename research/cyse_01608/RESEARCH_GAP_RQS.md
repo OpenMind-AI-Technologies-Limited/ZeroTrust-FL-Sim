@@ -32,3 +32,8 @@ Before journal submission, independently recover original submitted CSVs or tran
 
 
 Subsequent evidence: [NSL-KDD external replication](NSL_KDD_EVIDENCE.md), [two-source mechanism contrast](CROSS_DATASET_RESULTS.md). A robust, original research article still requires modern independent datasets, stronger adaptive threats, relevant state-of-the-art privacy-compatible Byzantine baselines, formal new security method or pre-specified novel insight, and original submitted-data reconciliation.
+
+
+## RFA and server-enforced plaintext update-bound extensions (2026-11)
+
+RFA-style and server norm-gated variants are now implemented and benchmarked on two prior historical intrusion sources. [Verified evidence](ROBUST_BASELINES_EVIDENCE.md) finds a conditional negative result: under studied local Gaussian sigma=1 with Byzantine protocol bypass, RFA and plaintext server norm gates remain vulnerable. This is empirical evaluation of known methods, **not itself a new algorithm or proven novelty**. FLTrust (trusted root-data assumption), contemporary DP-compatible defenses, strong adaptive/backdoor attacks, and genuine encrypted input-validity enforcement remain open; the separate [original raw data gate](ORIGINAL_DATA_GATE.md) is implemented but cannot run on missing historical submitted files.
