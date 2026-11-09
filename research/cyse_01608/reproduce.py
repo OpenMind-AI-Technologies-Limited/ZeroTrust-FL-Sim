@@ -52,6 +52,7 @@ class Config:
     partition: str = "iid"
     alpha: float = 0.3
     attacker_compliance: str = "compliant"
+    trusted_root_fraction: float = 0.0  # 0 preserves submitted design unchanged
 
     def __post_init__(self):
         if self.clients < 3 or not 0 <= self.malicious_clients < self.clients:
@@ -64,6 +65,8 @@ class Config:
             raise ValueError("invalid partition/alpha")
         if self.attacker_compliance not in {"compliant", "bypass"}:
             raise ValueError("attacker_compliance must be compliant or bypass")
+        if not 0 <= self.trusted_root_fraction < 0.5:
+            raise ValueError("invalid trusted root allocation")
         if self.trim_each_tail * 2 >= self.clients:
             raise ValueError("trimming would remove all clients")
         if self.clients < 2 * self.malicious_clients + 3:
@@ -201,6 +204,23 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
     xtr, ytr, xte, yte, n_classes = (
         load_task(dataset, seed, config) if external_task is None else external_task
     )
+    root_x = root_y = None
+    root_n = 0
+    if config.trusted_root_fraction > 0:
+        # Root samples are TRAINING only and removed from ALL client shards.
+        # This extra trust assumption is NOT part of the original 720-run study.
+        root_n = max(n_classes, int(math.ceil(len(ytr)*config.trusted_root_fraction)))
+        if len(ytr) - root_n < config.clients:
+            raise ValueError("not enough data for disjoint trusted root and clients")
+        row_indices = np.arange(len(ytr))
+        client_idx, root_idx = train_test_split(
+            row_indices, test_size=root_n, stratify=ytr,
+            random_state=seed+6019,
+        )
+        root_x, root_y = xtr[root_idx], ytr[root_idx]
+        xtr, ytr = xtr[client_idx], ytr[client_idx]
+    if aggregator == "fltrust" and root_x is None:
+        raise ValueError("FLTrust needs a held-out trusted root set")
     partitions = partition_indices(ytr, seed, config)
     if any(len(ids) == 0 for ids in partitions):
         raise ValueError("client shard cannot be empty")
@@ -263,9 +283,20 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
         # The submitted design's 720 cases retain their existing aggregation
         # behavior. RFA and plaintext norm gates are research extensions only.
         if aggregator in EXTENSION_AGGREGATORS:
+            trusted_update = None
+            if aggregator == "fltrust":
+                # Client updates and clean-root gradient share the same
+                # optimizer convention. Root is NOT client-private or encrypted.
+                root_prob = softmax(root_x @ weights, axis=1)
+                root_diff = root_prob.copy()
+                root_diff[np.arange(len(root_y)), root_y] -= 1
+                root_grad = root_x.T @ root_diff / len(root_y)
+                root_grad[:-1] += config.l2 * weights[:-1]
+                trusted_update = (-config.learning_rate * root_grad).reshape(-1)
             merged = aggregate_extended(
                 all_updates, aggregator, cap=config.clip_norm,
                 multi_krum_callback=lambda data: aggregate(data, "multi_krum", config),
+                trusted_update=trusted_update,
             )
         else:
             merged = aggregate(all_updates, aggregator, config)
@@ -281,6 +312,8 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
                 delta=config.delta if sigma else "", clip_norm=config.clip_norm if clipping else "",
                 noise_std=noise_std)
     if include_classification_metrics:
+        if config.trusted_root_fraction > 0:
+            result["trusted_root_rows"] = root_n
         # Only used by external cybersecurity benchmark experiments; adding
         # metrics must not change the original manuscript's CSV schema.
         from sklearn.metrics import balanced_accuracy_score, confusion_matrix, f1_score, recall_score
