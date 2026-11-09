@@ -23,13 +23,13 @@ from sklearn.datasets import load_breast_cancer, load_digits
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from robust_baselines import EXTENSION_AGGREGATORS, aggregate_extended
+
 ORDERS = (1.25, 1.5, 1.75, 2., 3., 4., 5., 8., 10., 16., 32., 64.)
 AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
 PRIVACY_MODES = ("none", "clip_only", "dp_0.5", "dp_1", "dp_2", "dp_4")
 THREATS = ("benign", "sign_flip", "label_flip")
 EXTENSION_THREATS = THREATS + ("alie_oracle",)
-# These are separate research extensions, not part of the 720-condition grid.
-from robust_baselines import EXTENSION_AGGREGATORS, aggregate_extended
 DATASETS = ("breast_cancer", "digits")
 FIELDS = ("dataset", "seed", "partition", "alpha", "aggregator", "privacy_mode",
           "threat", "attacker_compliance", "rounds", "n_clients", "malicious_clients",
