@@ -254,7 +254,9 @@ def inspect_source(parent: Path, source: str) -> dict:
     }
 
 
-def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path):
+def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path,
+                frozen_path: Path | None = None,
+                published_holm: Path | None = None):
     evidence = [
         inspect_source(unsw, SOURCES[0]),
         inspect_source(nsl, SOURCES[1]),
@@ -269,6 +271,38 @@ def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path):
         prev = max(prev, (3-rank) * row["one_sided_exact_p"])
         row["holm3_adjusted_p"] = min(1., prev)
         row["significant_at_familywise_0_05"] = row["holm3_adjusted_p"] < .05
+    if frozen_path is not None:
+        freeze = json.loads(frozen_path.read_text(encoding="utf-8"))
+        if (freeze.get("protocol_id") != "CYSE-01608-P1-root-trust-vs-distance-selection"
+                or freeze.get("freeze_id") != "P1-2026-11-09-raw-evidence-v1"
+                or set(freeze.get("sha256_by_source", {})) != set(SOURCES)):
+            raise ValueError("unknown or incomplete frozen P1 experiment identity")
+        for record in evidence:
+            for field, expected_hash in freeze["sha256_by_source"][record["dataset"]].items():
+                if (field not in ("run_sha256", "pair_sha256", "summary_sha256",
+                                  "manifest_sha256", "seed_J_sha256", "result_sha256")
+                        or record[field] != expected_hash):
+                    raise ValueError(record["dataset"] + ": P1 frozen evidence drift: " + field)
+    if published_holm is not None:
+        published = json.loads(published_holm.read_text(encoding="utf-8"))
+        if (not isinstance(published, list) or len(published) != 3 or
+                {p.get("dataset") for p in published} != set(SOURCES)):
+            raise ValueError("invalid published three-source Holm family")
+        by_source = {x["dataset"]: x for x in evidence}
+        for reported in published:
+            current = by_source[reported["dataset"]]
+            for published_field, computed_field in (
+                    ("exact_positive_sign_test_p", "one_sided_exact_p"),
+                    ("mean_J_pp", "mean_J_pp"),
+                    ("holm3_adjusted_p", "holm3_adjusted_p")):
+                close(reported[published_field], current[computed_field],
+                      "published Holm " + published_field)
+            if (reported["positive"] != current["positive"] or
+                    reported["negative"] != current["negative"] or
+                    reported["zero"] != current["zero"] or
+                    reported["significant_at_familywise_0_05"] !=
+                        current["significant_at_familywise_0_05"]):
+                raise ValueError("incorrect published Holm significance decision")
     result = {
         "protocol": "CYSE-01608-P1-root-trust-vs-distance-selection",
         "validation": "Independent raw-to-figure numerical integrity, NOT origin/authenticity or scientific novelty proof",
@@ -276,6 +310,8 @@ def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path):
         "total_raw_executions": 1440,
         "total_federated_rounds": 28800,
         "source_results": evidence,
+        "frozen_sha256": sha(frozen_path) if frozen_path is not None else None,
+        "published_holm_sha256": sha(published_holm) if published_holm is not None else None,
     }
     output.mkdir(parents=True, exist_ok=True)
     (output / "independent_scientific_stability_gate.json").write_text(
@@ -289,8 +325,11 @@ def main():
     p.add_argument("--nsl", type=Path, required=True)
     p.add_argument("--ciciot", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--freeze-file", type=Path)
+    p.add_argument("--published-holm", type=Path)
     args = p.parse_args()
-    print(json.dumps(check_three(args.unsw, args.nsl, args.ciciot, args.output),
+    print(json.dumps(check_three(args.unsw, args.nsl, args.ciciot, args.output,
+                                 args.freeze_file, args.published_holm),
                      indent=2))
 
 
