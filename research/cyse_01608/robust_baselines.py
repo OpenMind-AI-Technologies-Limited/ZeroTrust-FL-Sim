@@ -16,8 +16,8 @@ EXTENSION_AGGREGATORS = (
     "server_clipped_mean",
     "server_clipped_rfa",
     "server_clipped_multi_krum",
-    "fltrust",
 )
+TRUSTED_ROOT_AGGREGATORS = ("fltrust",)
 
 
 def _validate(updates: np.ndarray) -> np.ndarray:
@@ -127,7 +127,7 @@ def aggregate_extended(
     multi_krum_callback=None, trusted_update=None,
 ) -> np.ndarray:
     """Select an explicit transparent baseline. No hidden fallback."""
-    if method not in EXTENSION_AGGREGATORS:
+    if method not in EXTENSION_AGGREGATORS + TRUSTED_ROOT_AGGREGATORS:
         raise ValueError("unknown robust extension method")
     vectors = _validate(updates)
     if method == "fltrust":
