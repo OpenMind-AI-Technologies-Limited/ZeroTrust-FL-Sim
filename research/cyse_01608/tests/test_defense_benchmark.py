@@ -22,8 +22,8 @@ def test_paired_plaintext_robust_baselines_unsw(tmp_path):
         attacks=("sign_flip",), rounds=2, train_limit=300,
         test_limit=100, verify_sources=False,
     )
-    assert m["executions"] == 16
-    assert m["federated_rounds"] == 32
+    assert m["executions"] == 32
+    assert m["federated_rounds"] == 64
     assert m["not_original_720_runs"]
     with (output / "baseline_runs.csv").open(newline="") as file:
         records=list(csv.DictReader(file))
@@ -31,7 +31,7 @@ def test_paired_plaintext_robust_baselines_unsw(tmp_path):
         pairs=list(csv.DictReader(file))
     with (output / "baseline_summary.csv").open(newline="") as file:
         summary=list(csv.DictReader(file))
-    assert len(records)==16 and len(pairs)==8 and len(summary)==8
+    assert len(records)==32 and len(pairs)==16 and len(summary)==16
     assert {r["aggregator"] for r in records} == {
         "mean", "multi_krum", "rfa", "server_clipped_rfa"
     }
