@@ -122,3 +122,22 @@ Suggested accurate working title: **“How Trusted Server Data Changes Privacy�
 Do not silently substitute recovered 2026-09-23 supplementary files for authenticated 2026-09-09/15 Editorial Manager attachments; instead clearly describe their provenance and compute replacement tables from the independently rerunnable research workflow.
 
 **Current branch**: research/cyse-01608-reproducibility; **PR #121 remains DRAFT**. Benchmarks passing does not justify merging into main or declaring the rejected manuscript ready for resubmission.
+
+
+## 11. Supplementary in-ball honest-statistics-oracle stress (2026-11-09)
+
+**Research branch extension, not a prospectively pre-specified confirmatory test.** Added `in_ball_oracle` attack to the separate supplemental threat set, leaving the original 720-run design untouched. The attacker is given the true mean of honest *pre-noise* gradients each round, deliberately reverses its direction and sends a vector with Euclidean norm `C/2`. This is a strong, artificial oracle-information scenario, not an ordinary observed attacker or an encrypted CKKS adversary. Its magnitude lies inside the server clipping bound, so clipping alone cannot reject it. Reference: `in_ball_oracle_update()` and `test_in_ball_oracle.py`.
+
+The source-pinned matched 5-seed evaluation compares Multi-Krum and existing FLTrust with the SAME 5% disjoint server-root training-row removal, local `clip_only` vs `dp_1`, compliant vs malicious-client bypass, and benign vs in-ball-oracle records. Both UNSW-NB15 and NSL-KDD use 6,000 sampled training and 3,000 held-out rows; n=15, f=3, alpha=0.3, 20 rounds. Each source has 80 cases/1,600 rounds, 40 accuracy-drop matched pairs, 20 per-seed effects and 6 exploratory statistical contrasts.
+
+| Source | Multi-Krum bypass attack accuracy, clip only | Multi-Krum bypass attack accuracy, DP σ=1 | FLTrust bypass attack accuracy, clip only | FLTrust bypass attack accuracy, DP σ=1 | Exploratory mean interaction J (pp) |
+|---|---:|---:|---:|---:|---:|
+| UNSW-NB15 | 69.53% | 45.11% | 74.48% | 69.31% | +14.17 |
+| NSL-KDD | 74.22% | 52.13% | 74.95% | 73.93% | +16.43 |
+
+These are five-seed averages under the in-ball-oracle condition. Raw data and per-seed interactions were independently recomputed from the Actions archives, and missing/modified artifact hashes are rejected by the workflow. In both studies all five seed-level `J` contrasts were positive; **there is no post-hoc population-level hypothesis claim**. This counterexample shows an L2 norm check cannot establish update honesty. It gives further *conditional* sensitivity evidence for the trusted-root setting, not a new robust defense or encrypted secure protocol.
+
+- [Successful GitHub experimental workflow](https://github.com/smshagor-dev/ZeroTrust-FL-Sim/actions/runs/42694848140).
+- Test and implementation: `research/cyse_01608/tests/test_in_ball_oracle.py`, `research/cyse_01608/reproduce.py`, `.github/workflows/cyse-inball-oracle.yml`.
+
+**Conclusion is unchanged:** the limited, pre-specified 30-seed empirical RQ is reproducible. Full Cybersecurity submission readiness for the *original privacy + Byzantine + CKKS secure aggregation paper* is NOT certified because original pre-submission provenance, deployed LDP, encrypted malicious-input validity, generalizable external validity and independent novelty review are missing. The rewritten narrow empirical paper must not claim these unsupported capabilities.
