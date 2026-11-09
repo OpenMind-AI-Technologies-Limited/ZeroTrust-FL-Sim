@@ -65,7 +65,7 @@ jobs:
             --policies compliant bypass \
             --attacks sign_flip \
             --rounds 20 --train-limit 6000 --test-limit 3000
-      - name: Verify all 120 runs, source checksums and original-grid exclusion
+      - name: Verify all 240 runs, source checksums and original-grid exclusion
         run: |
           python - <<'PY'
           import csv,hashlib,json
@@ -73,17 +73,17 @@ jobs:
           path=Path("artifacts/cyse_01608_baselines_${{ matrix.slug }}")
           manifest=json.loads((path/"baseline_manifest.json").read_text())
           assert manifest["not_original_720_runs"] is True
-          assert manifest["executions"]==120
-          assert manifest["federated_rounds"]==2400
+          assert manifest["executions"]==240
+          assert manifest["federated_rounds"]==4800
           assert len(manifest["dataset_split_manifests"])==5
           with (path/"baseline_runs.csv").open(newline="") as f: runs=list(csv.DictReader(f))
           with (path/"baseline_pairs.csv").open(newline="") as f: pairs=list(csv.DictReader(f))
           with (path/"baseline_summary.csv").open(newline="") as f: summaries=list(csv.DictReader(f))
-          assert len(runs)==120 and len(pairs)==60 and len(summaries)==24
+          assert len(runs)==240 and len(pairs)==120 and len(summaries)==24
           assert hashlib.sha256((path/"baseline_runs.csv").read_bytes()).hexdigest()==manifest["raw_csv_sha256"]
           assert hashlib.sha256((path/"baseline_pairs.csv").read_bytes()).hexdigest()==manifest["paired_csv_sha256"]
           assert all(0<=float(r["macro_f1"])<=1 for r in runs)
-          print("Verified 120 baseline conditions / 2400 rounds:",manifest["dataset"])
+          print("Verified 240 baseline conditions / 4800 rounds:",manifest["dataset"])
           PY
       - name: Archive machine-readable results and manifests (not copyrighted raw dataset)
         if: always()
