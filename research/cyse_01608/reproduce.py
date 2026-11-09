@@ -54,6 +54,7 @@ class Config:
     attacker_compliance: str = "compliant"
     trusted_root_fraction: float = 0.0  # 0 preserves submitted design unchanged
     targeted_class: int = 0  # supplementary target-label manipulation only
+    root_label_poison_fraction: float = 0.0  # supplementary assumed root-trust breach
 
     def __post_init__(self):
         if self.clients < 3 or not 0 <= self.malicious_clients < self.clients:
@@ -68,6 +69,10 @@ class Config:
             raise ValueError("attacker_compliance must be compliant or bypass")
         if self.targeted_class < 0:
             raise ValueError("targeted class must be nonnegative")
+        if not math.isfinite(self.root_label_poison_fraction) or not 0 <= self.root_label_poison_fraction <= 1:
+            raise ValueError("invalid root-label corruption fraction")
+        if self.root_label_poison_fraction > 0 and self.trusted_root_fraction <= 0:
+            raise ValueError("root corruption requires an allocated server-held root")
         if not 0 <= self.trusted_root_fraction < 0.5:
             raise ValueError("invalid trusted root allocation")
         if self.trim_each_tail * 2 >= self.clients:
@@ -221,6 +226,15 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             random_state=seed+6019,
         )
         root_x, root_y = xtr[root_idx], ytr[root_idx]
+        if config.root_label_poison_fraction > 0:
+            # Explicit assumed server-root integrity BREACH; deterministic
+            # independent selection, not a network backdoor or active poisoning
+            # of clients. The original experimental path is unchanged.
+            root_y = root_y.copy()
+            count = int(round(len(root_y)*config.root_label_poison_fraction))
+            selected = np.random.default_rng(seed+20771).choice(
+                len(root_y), size=count, replace=False)
+            root_y[selected] = (root_y[selected]+1) % n_classes
         xtr, ytr = xtr[client_idx], ytr[client_idx]
     if aggregator == "fltrust" and root_x is None:
         raise ValueError("FLTrust needs a held-out trusted root set")
@@ -323,6 +337,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
     if include_classification_metrics:
         if config.trusted_root_fraction > 0:
             result["trusted_root_rows"] = root_n
+            result["root_label_poison_fraction"] = config.root_label_poison_fraction
         # Only used by external cybersecurity benchmark experiments; adding
         # metrics must not change the original manuscript's CSV schema.
         from sklearn.metrics import balanced_accuracy_score, confusion_matrix, f1_score, recall_score
