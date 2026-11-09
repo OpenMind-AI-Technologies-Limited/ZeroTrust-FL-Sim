@@ -29,7 +29,7 @@ ORDERS = (1.25, 1.5, 1.75, 2., 3., 4., 5., 8., 10., 16., 32., 64.)
 AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
 PRIVACY_MODES = ("none", "clip_only", "dp_0.5", "dp_1", "dp_2", "dp_4")
 THREATS = ("benign", "sign_flip", "label_flip")
-EXTENSION_THREATS = THREATS + ("alie_oracle",)
+EXTENSION_THREATS = THREATS + ("alie_oracle", "targeted_label_poison")
 DATASETS = ("breast_cancer", "digits")
 FIELDS = ("dataset", "seed", "partition", "alpha", "aggregator", "privacy_mode",
           "threat", "attacker_compliance", "rounds", "n_clients", "malicious_clients",
@@ -53,6 +53,7 @@ class Config:
     alpha: float = 0.3
     attacker_compliance: str = "compliant"
     trusted_root_fraction: float = 0.0  # 0 preserves submitted design unchanged
+    targeted_class: int = 0  # supplementary target-label manipulation only
 
     def __post_init__(self):
         if self.clients < 3 or not 0 <= self.malicious_clients < self.clients:
@@ -65,6 +66,8 @@ class Config:
             raise ValueError("invalid partition/alpha")
         if self.attacker_compliance not in {"compliant", "bypass"}:
             raise ValueError("attacker_compliance must be compliant or bypass")
+        if self.targeted_class < 0:
+            raise ValueError("targeted class must be nonnegative")
         if not 0 <= self.trusted_root_fraction < 0.5:
             raise ValueError("invalid trusted root allocation")
         if self.trim_each_tail * 2 >= self.clients:
@@ -221,6 +224,8 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
         xtr, ytr = xtr[client_idx], ytr[client_idx]
     if aggregator == "fltrust" and root_x is None:
         raise ValueError("FLTrust needs a held-out trusted root set")
+    if threat == "targeted_label_poison" and config.targeted_class >= n_classes:
+        raise ValueError("targeted class outside label space")
     partitions = partition_indices(ytr, seed, config)
     if any(len(ids) == 0 for ids in partitions):
         raise ValueError("client shard cannot be empty")
@@ -258,6 +263,10 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             y = client_y[client]
             if threat == "label_flip" and client in malicious:
                 y = (y+1) % n_classes
+            if threat == "targeted_label_poison" and client in malicious:
+                # Explicit malicious label-forgery: all poisoned targets map
+                # to one chosen class. This is NOT a triggered backdoor.
+                y = np.full_like(y, config.targeted_class)
             probs = softmax(x @ weights, axis=1)
             diff = probs.copy()
             diff[np.arange(len(y)), y] -= 1
