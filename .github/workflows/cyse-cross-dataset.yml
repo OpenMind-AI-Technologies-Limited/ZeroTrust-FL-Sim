@@ -1,0 +1,93 @@
+name: CYSE-01608 Cross-dataset privacy and Byzantine analysis
+
+on:
+  push:
+    branches:
+      - research/cyse-01608-reproducibility
+    paths:
+      - "research/cyse_01608/cross_dataset_compare.py"
+      - "research/cyse_01608/tests/test_cross_dataset_compare.py"
+      - ".github/workflows/cyse-cross-dataset.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  contrast:
+    name: Source-isolated two-dataset descriptive interaction
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Install pinned statistical dependencies
+        run: python -m pip install -r research/cyse_01608/requirements.txt
+      - name: Validate comparison logic with synthetic fixture tests
+        run: python -m pytest -q research/cyse_01608/tests/test_cross_dataset_compare.py
+      - name: Download audited UNSW-NB15 five-seed result artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cyse-01608-unsw-nb15-heldout-evidence
+          path: evidence/unsw
+          run-id: 42539230472
+          github-token: ${{ github.token }}
+      - name: Download audited NSL-KDD five-seed result artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cyse-01608-nsl-kdd-reproducibility
+          path: evidence/nsl
+          run-id: 42582573246
+          github-token: ${{ github.token }}
+      - name: Check source-run manifests and matched experimental cardinalities
+        run: |
+          python - <<'PY'
+          import csv,hashlib,json
+          from pathlib import Path
+          for d,stem,label in (("unsw","unsw","UNSW-NB15"),("nsl","nsl","NSL-KDD")):
+              root=Path("evidence")/d
+              manifest=json.loads((root/(stem+"_manifest.json")).read_text())
+              with (root/(stem+"_paired.csv")).open(newline="") as f:
+                  rows=list(csv.DictReader(f))
+              assert manifest["federated_executions"]==80
+              assert manifest["federated_rounds"]==1600
+              assert len(rows)==40
+              assert {r["dataset"] for r in rows}=={label}
+              assert len(manifest["dataset_manifests"])==5
+              content=(root/(stem+"_runs.csv")).read_bytes()
+              assert hashlib.sha256(content).hexdigest()==manifest["runs_sha256"]
+              print(label,manifest["runs_sha256"],len(rows),"paired results")
+          PY
+      - name: Compare matched privacy-by-bypass interactions without pooling p-values
+        run: |
+          python research/cyse_01608/cross_dataset_compare.py \
+            --unsw-paired evidence/unsw/unsw_paired.csv \
+            --nsl-paired evidence/nsl/nsl_paired.csv \
+            --output artifacts/cyse_01608_cross_dataset \
+            --draws 10000
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          p=Path("artifacts/cyse_01608_cross_dataset")
+          with (p/"cross_seed_effects.csv").open(newline="") as f:
+              effects=list(csv.DictReader(f))
+          with (p/"cross_summary.csv").open(newline="") as f:
+              summary=list(csv.DictReader(f))
+          meta=json.loads((p/"cross_manifest.json").read_text())
+          assert len(effects)==30
+          assert len(summary)==9
+          assert meta["seed_effects"]==30 and meta["summary_rows"]==9
+          assert {r["dataset"] for r in effects}=={"UNSW-NB15","NSL-KDD"}
+          print("Two dataset interactions verified")
+          PY
+      - name: Publish source-linked evidence (no copyrighted datasets)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cyse-01608-two-dataset-interaction
+          path: artifacts/cyse_01608_cross_dataset/
+          if-no-files-found: ignore
+          retention-days: 30
