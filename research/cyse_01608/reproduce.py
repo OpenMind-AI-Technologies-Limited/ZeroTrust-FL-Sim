@@ -23,7 +23,7 @@ from sklearn.datasets import load_breast_cancer, load_digits
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from robust_baselines import EXTENSION_AGGREGATORS, aggregate_extended
+from robust_baselines import EXTENSION_AGGREGATORS, TRUSTED_ROOT_AGGREGATORS, aggregate_extended
 
 ORDERS = (1.25, 1.5, 1.75, 2., 3., 4., 5., 8., 10., 16., 32., 64.)
 AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
@@ -199,7 +199,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
              external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None,
              include_classification_metrics: bool = False,
              include_selection_diagnostics: bool = False) -> dict:
-    if aggregator not in AGGREGATORS + EXTENSION_AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
+    if aggregator not in AGGREGATORS + EXTENSION_AGGREGATORS + TRUSTED_ROOT_AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
         raise ValueError("invalid experimental condition")
     xtr, ytr, xte, yte, n_classes = (
         load_task(dataset, seed, config) if external_task is None else external_task
@@ -282,7 +282,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
             selection_counts.append(sum(int(client) in malicious for client in selected))
         # The submitted design's 720 cases retain their existing aggregation
         # behavior. RFA and plaintext norm gates are research extensions only.
-        if aggregator in EXTENSION_AGGREGATORS:
+        if aggregator in EXTENSION_AGGREGATORS + TRUSTED_ROOT_AGGREGATORS:
             trusted_update = None
             if aggregator == "fltrust":
                 # Client updates and clean-root gradient share the same
