@@ -89,4 +89,14 @@ Example (replace all column names and path with those of the real dataset):
 python research/cyse_01608/cyber_experiment.py --csv /path/to/intrusion_flows.csv --label attack_label --group device_id --exclude flow_id source_ip destination_ip timestamp --output artifacts/cyse_01608_intrusion --partition dirichlet --alpha 0.3 --seeds 0 1 2 3 4 --rounds 20
 ~~~
 
-The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with dataset SHA-256, splits, feature names and source checksum. **No real cybersecurity dataset has been executed as part of the included evidence**; all adapter tests use clearly labeled synthetic fixtures. Class imbalance (macro-F1), targeted/backdoor attack success, external validity and independent data-source verification are still required for journal-level conclusions. The original 720-condition Breast Cancer/Digits evidence remains unchanged and separate.
+The output includes cyber_runs.csv, cyber_pairs.csv and cyber_manifest.json with dataset SHA-256, splits, feature names and source checksum. The generic cybersecurity CSV adapter tests use synthetic fixtures, but a separate actual UNSW-NB15 heldout evaluation has now been completed (UNSW_NB15_EVIDENCE.md); all adapter tests use clearly labeled synthetic fixtures. Class imbalance (macro-F1), targeted/backdoor attack success, external validity and independent data-source verification are still required for journal-level conclusions. The original 720-condition Breast Cancer/Digits evidence remains unchanged and separate.
+
+
+## Newly measured cybersecurity and CKKS results
+
+- [Five-seed UNSW-NB15 real heldout evaluation](UNSW_NB15_EVIDENCE.md)
+- [Measured native SEAL/CKKS timing and accuracy](CKKS_BENCHMARK_RESULTS.md)
+- [Focused research questions and prior art](RESEARCH_GAP_RQS.md)
+- [Original additional files and DOI audit](DATA_AVAILABILITY_AUDIT.md)
+
+These newer studies must not be represented as the submitted manuscript's original 720 runs or proof of a newly invented encrypted Byzantine defense.
