@@ -76,3 +76,20 @@ def test_fltrust_and_mean_share_small_source_dataset(tmp_path):
     with (result / "baseline_pairs.csv").open(newline="") as f:
         paired = list(csv.DictReader(f))
     assert len(paired) == 4
+
+def test_targeted_label_poison_is_explicit_and_seeded():
+    cfg = Config(rounds=3, attacker_compliance="bypass", targeted_class=0)
+    first = run_case("breast_cancer", 1, "mean", "clip_only",
+                     "targeted_label_poison", cfg,
+                     include_classification_metrics=True)
+    again = run_case("breast_cancer", 1, "mean", "clip_only",
+                     "targeted_label_poison", cfg,
+                     include_classification_metrics=True)
+    assert first == again
+    assert first["threat"] == "targeted_label_poison"
+    assert len(__import__("json").loads(first["per_class_recall_json"])) == 2
+    with pytest.raises(ValueError,match="targeted class outside"):
+        run_case("breast_cancer", 1, "mean", "clip_only",
+                 "targeted_label_poison", Config(rounds=2,targeted_class=3))
+    with pytest.raises(ValueError, match="targeted class must"):
+        Config(targeted_class=-1)
