@@ -28,6 +28,8 @@ AGGREGATORS = ("mean", "trimmed_mean", "median", "multi_krum")
 PRIVACY_MODES = ("none", "clip_only", "dp_0.5", "dp_1", "dp_2", "dp_4")
 THREATS = ("benign", "sign_flip", "label_flip")
 EXTENSION_THREATS = THREATS + ("alie_oracle",)
+# These are separate research extensions, not part of the 720-condition grid.
+from robust_baselines import EXTENSION_AGGREGATORS, aggregate_extended
 DATASETS = ("breast_cancer", "digits")
 FIELDS = ("dataset", "seed", "partition", "alpha", "aggregator", "privacy_mode",
           "threat", "attacker_compliance", "rounds", "n_clients", "malicious_clients",
@@ -194,7 +196,7 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
              external_task: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int] | None = None,
              include_classification_metrics: bool = False,
              include_selection_diagnostics: bool = False) -> dict:
-    if aggregator not in AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
+    if aggregator not in AGGREGATORS + EXTENSION_AGGREGATORS or privacy_mode not in PRIVACY_MODES or threat not in EXTENSION_THREATS:
         raise ValueError("invalid experimental condition")
     xtr, ytr, xte, yte, n_classes = (
         load_task(dataset, seed, config) if external_task is None else external_task
@@ -258,7 +260,16 @@ def run_case(dataset: str, seed: int, aggregator: str, privacy_mode: str,
         if include_selection_diagnostics:
             selected = multi_krum_selected_clients(all_updates, config)
             selection_counts.append(sum(int(client) in malicious for client in selected))
-        weights += aggregate(all_updates, aggregator, config).reshape(weights.shape)
+        # The submitted design's 720 cases retain their existing aggregation
+        # behavior. RFA and plaintext norm gates are research extensions only.
+        if aggregator in EXTENSION_AGGREGATORS:
+            merged = aggregate_extended(
+                all_updates, aggregator, cap=config.clip_norm,
+                multi_krum_callback=lambda data: aggregate(data, "multi_krum", config),
+            )
+        else:
+            merged = aggregate(all_updates, aggregator, config)
+        weights += merged.reshape(weights.shape)
     acc, loss = _accuracy_and_loss(xte, yte, weights)
     result = dict(dataset=dataset, seed=seed, partition=config.partition,
                 alpha=config.alpha if config.partition == "dirichlet" else "",
