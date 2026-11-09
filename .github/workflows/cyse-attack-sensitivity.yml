@@ -31,7 +31,7 @@ jobs:
 
   evaluate:
     needs: regression
-    name: "\${{ matrix.dataset.slug }} f=\${{ matrix.f }} alpha=\${{ matrix.alpha }}"
+    name: "${{ matrix.dataset.slug }} f=${{ matrix.f }} alpha=${{ matrix.alpha }}"
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -52,7 +52,7 @@ jobs:
       - name: Fetch exact historic independent IDS train and test sources
         shell: bash
         env:
-          DATASET: \${{ matrix.dataset.slug }}
+          DATASET: ${{ matrix.dataset.slug }}
         run: |
           set -euo pipefail
           mkdir -p data/input
@@ -74,7 +74,7 @@ jobs:
           from unsw_data import verify_file as verify_unsw, EXPECTED_GIT_BLOBS as unsw_blobs
           from nsl_data import verify_file as verify_nsl, EXPECTED_GIT_BLOBS as nsl_blobs
           # Both wrappers reject files that differ from pinned original blobs.
-          slug="\${{ matrix.dataset.slug }}"
+          slug="${{ matrix.dataset.slug }}"
           verify, expected=(verify_unsw,unsw_blobs) if slug=="unsw" else (verify_nsl,nsl_blobs)
           for name in ("train","test"):
               info=verify(Path("data/input")/name,expected[name])
@@ -82,9 +82,9 @@ jobs:
           PY
       - name: Evaluate paired ALIE statistics-oracle and sign-flip stress
         env:
-          DATASET: \${{ matrix.dataset.label }}
-          F: \${{ matrix.f }}
-          ALPHA: \${{ matrix.alpha }}
+          DATASET: ${{ matrix.dataset.label }}
+          F: ${{ matrix.f }}
+          ALPHA: ${{ matrix.alpha }}
         run: |
           python - <<'PY'
           import os,sys
@@ -133,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cyse-attack-sensitivity-\${{ matrix.dataset.slug }}-f\${{ matrix.f }}-alpha\${{ matrix.alpha }}
+          name: cyse-attack-sensitivity-${{ matrix.dataset.slug }}-f${{ matrix.f }}-alpha${{ matrix.alpha }}
           path: |
             evidence/baselines/
             evidence/paired-audit/
