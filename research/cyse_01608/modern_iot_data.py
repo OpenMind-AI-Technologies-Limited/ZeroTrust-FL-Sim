@@ -37,7 +37,8 @@ def _features(df: pd.DataFrame) -> list[str]:
 
 
 def _balanced_sample(df: pd.DataFrame, feature_cols: list[str],
-                     samples: int, seed: int) -> pd.DataFrame:
+                     samples: int, seed: int,
+                     exclude_hashes: set[int] | None = None) -> pd.DataFrame:
     if samples < 100 or samples % 2:
         raise ValueError("sample size must be even, >=100")
     if set(pd.unique(df["label"])) != {0, 1}:
@@ -52,6 +53,11 @@ def _balanced_sample(df: pd.DataFrame, feature_cols: list[str],
         candidates = members.sample(n=budget, replace=False,
                                     random_state=seed + int(cls)*9973)
         candidates = candidates.drop_duplicates(subset=feature_cols)
+        if exclude_hashes:
+            fingerprints = pd.util.hash_pandas_object(
+                candidates[feature_cols], index=False
+            ).astype("uint64")
+            candidates = candidates.loc[~fingerprints.isin(exclude_hashes)]
         if len(candidates) < samples // 2:
             raise ValueError("insufficient independent unique feature vectors")
         selected.append(candidates.iloc[:samples//2])
@@ -77,12 +83,15 @@ def snapshot(train_frame: pd.DataFrame, validation_frame: pd.DataFrame,
     if feature_cols != _features(validation_frame):
         raise ValueError("source feature order differs across splits")
     t = _balanced_sample(train_frame, feature_cols, train_rows, sample_seed)
+    train_hash = _row_hashes(t, feature_cols)
+    # The published random splits contain some identical measured flow vectors.
+    # Exclude their signatures BEFORE choosing the held-out validation sample.
+    # Never keep leaked duplicates or silently reduce the intended class count.
     v = _balanced_sample(validation_frame, feature_cols, validation_rows,
-                         sample_seed + 149)
+                         sample_seed + 149, exclude_hashes=train_hash)
     cols = feature_cols + ["label"]
     # Remove collisions and repeat deterministic validation draw if necessary.
     # Fail rather than presenting random-split flow duplicates as independent.
-    train_hash = _row_hashes(t, feature_cols)
     validation_hash = _row_hashes(v, feature_cols)
     overlap = train_hash & validation_hash
     if overlap:
@@ -109,6 +118,7 @@ def snapshot(train_frame: pd.DataFrame, validation_frame: pd.DataFrame,
         class_counts_holdout={str(k):int(v) for k,v in v["label"].value_counts().items()},
         features=feature_cols, excluded=sorted(EXCLUDED),
         no_duplicate_feature_vectors_within_or_across_splits=True,
+        sample_duplicate_policy="filter validation candidate signatures against all train sample feature hashes",
         train_sha256=_sha(train_csv), test_sha256=_sha(validation_csv),
         limitations=[
             "Public HF derivative, not CIC original full release; data release source lineage is a stated assumption.",
