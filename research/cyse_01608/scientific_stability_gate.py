@@ -335,7 +335,9 @@ def check_three(unsw: Path, nsl: Path, ciciot: Path, output: Path,
                                   "semantic_manifest_sha256", "seed_J_sha256",
                                   "semantic_result_sha256")
                         or record[field] != expected_hash):
-                    raise ValueError(record["dataset"] + ": P1 frozen evidence drift: " + field)
+                    raise ValueError(record["dataset"] + ": P1 frozen evidence drift: " + field +
+                                     " observed=" + str(record.get(field)) +
+                                     " expected=" + str(expected_hash))
     if published_holm is not None:
         published = json.loads(published_holm.read_text(encoding="utf-8"))
         if (not isinstance(published, list) or len(published) != 3 or
